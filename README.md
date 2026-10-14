@@ -3,7 +3,7 @@
 A small, readable web security testing proxy, written in Python. It is a
 clean-room build of the ideas in Burp Suite Professional: the features were
 worked out from PortSwigger's public documentation and from open-source
-tools (OWASP ZAP, mitmproxy, Caido), not from Burp's code.
+tools (OWASP ZAP, mitmproxy), not from Burp's code.
 
 **Status: part 2 of 10.** What works today: the intercepting proxy
 (HTTP and HTTPS capture, scope file, match-and-replace rules, a SQLite
