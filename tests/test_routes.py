@@ -14,7 +14,8 @@ from proxyforge.cli import main
 from proxyforge.history import Flow, History
 from proxyforge.http import Headers, Request, Response, decode_content
 from proxyforge.routes import (
-    Route, RouteStore, coverage, format_report, load_list, load_rea, path_only, pattern_regex,
+    Route, RouteStore, coverage, format_report, load_list, load_rea, match_pattern, path_only,
+    printable, split_host,
 )
 
 FIXTURE = Path(__file__).parent / "fixtures" / "rea-juice-shop.json"
@@ -46,9 +47,56 @@ def flow(method: str, target: str, status: int | None = 200, host="127.0.0.1", p
     ("/a.b", "/axb", False),                           # dots are literal, not regex wildcards
     ("**", "/anything/at/all", True),
     ("/metrics", "http://127.0.0.1:3000/metrics", True),
+    ("/api/Users/:id(\\d+)", "/api/Users/7", True),        # constraints are matched as a plain segment
+    ("/ftp(?!/quarantine)/:file", "/ftp/legal.md", False),  # regex syntax is literal, never compiled
+    ("/a/:x?/b", "/a/b", True),
+    ("/a/:x?/b", "/a/1/b", True),
+    ("/a/*/end", "/a/1/2/3/end", True),
+    ("/a/*/end", "/a/end", True),
+    ("/a/*/end", "/b/end", False),
 ])
 def test_pattern_matching(pattern, path, expected):
-    assert bool(pattern_regex(pattern).match(path_only(path))) is expected
+    assert match_pattern(pattern, path_only(path)) is expected
+
+
+def test_regex_syntax_in_a_pattern_is_plain_text():
+    # Express 4 would compile the lookahead; the matcher never does, so the
+    # pattern only matches a path spelled exactly like it.
+    assert match_pattern("/ftp(?!/quarantine)/:file", "/ftp(?!/quarantine)/x")
+    assert not match_pattern("/ftp(?!/quarantine)/:file", "/ftp/quarantine/x")
+
+
+def test_use_routes_match_everything_under_their_prefix():
+    assert match_pattern("/api", "/api/Users/7", prefix=True)
+    assert match_pattern("/api", "/api", prefix=True)
+    assert not match_pattern("/api", "/apiary", prefix=True)
+    assert not match_pattern("/api", "/api/Users/7")
+    r = Route("ANY", "/ftp", "server", mechanism="call:app.use")
+    assert r.prefix and r.matches("GET", "/ftp/legal.md")
+
+
+def test_hostile_patterns_cannot_make_matching_slow():
+    import time
+    pattern = "/" + "/".join(["*"] * 12) + "/end"
+    path = "/" + "a/" * 3000 + "x"
+    started = time.monotonic()
+    assert not match_pattern(pattern, path)
+    assert match_pattern(":a?" * 12 + "/end", "/end")
+    assert time.monotonic() - started < 2.0
+
+
+def test_printable_keeps_terminal_escapes_visible():
+    assert printable("/ok path") == "/ok path"
+    assert printable("/x\x1b[31mred\r\n") == "/x\\x1b[31mred\\r\\n"
+
+
+def test_split_host():
+    assert split_host("127.0.0.1:3000") == ("127.0.0.1", 3000)
+    assert split_host("Shop.Example.com") == ("shop.example.com", None)
+    assert split_host("[::1]:3000") == ("::1", 3000)
+    assert split_host("*.example.com") == ("*.example.com", None)
+    with pytest.raises(ValueError):
+        split_host("host:notaport")
 
 
 def test_route_method_must_match_unless_any():
@@ -86,6 +134,37 @@ def test_import_keeps_where_each_route_was_found():
     assert basket.origin == "rea-juice-shop.json"
 
 
+def test_import_keeps_same_pattern_from_different_files(tmp_path):
+    # router.get("/") in every routes/*.ts file is a different endpoint each time.
+    doc = json.loads(FIXTURE.read_text())
+    nodes = doc["normalized_result"]["graph"]["nodes"]
+    root = next(n for n in nodes if n["kind"] == "endpoint"
+                and any(o["properties"]["value"] == "/" and o["properties"]["mechanism"] == "call:router.get"
+                        for o in n["observations"]))
+    copy = json.loads(json.dumps(root))
+    for o in copy["observations"]:
+        o["evidence"]["location"]["value"]["source"] = "routes/orders.ts"
+    nodes.append(copy)
+    (tmp_path / "two.json").write_text(json.dumps(doc))
+    found = sorted(r.where for r in load_rea(tmp_path / "two.json").routes
+                   if (r.method, r.pattern) == ("GET", "/"))
+    assert found == ["routes/dataErasure.ts:24", "routes/orders.ts:24"]
+
+
+def test_import_tolerates_broken_shapes_with_a_clear_error(tmp_path):
+    doc = json.loads(FIXTURE.read_text())
+    doc["normalized_result"]["graph"]["nodes"][0]["observations"] = "nonsense"
+    doc["normalized_result"]["statistics"] = ["not", "a", "dict"]
+    (tmp_path / "odd.json").write_text(json.dumps(doc))
+    clean = {(r.method, r.pattern) for r in load_rea(FIXTURE).routes}
+    odd = {(r.method, r.pattern) for r in load_rea(tmp_path / "odd.json").routes}
+    assert clean - odd == {("POST", "/rest/user/login")}  # only the broken node is lost
+    doc["normalized_result"]["graph"]["nodes"] = None
+    (tmp_path / "bad.json").write_text(json.dumps(doc))
+    with pytest.raises(ValueError, match="analyze-javascript-application"):
+        load_rea(tmp_path / "bad.json")
+
+
 def test_import_dedupes_repeated_registrations(tmp_path):
     # Juice Shop registers POST /api/Users several times (server.ts:436, 448, 449, 450).
     doc = json.loads(FIXTURE.read_text())
@@ -118,6 +197,9 @@ def test_import_list_file(tmp_path):
     result = load_list(f)
     assert [(r.method, r.pattern) for r in result.routes] == [
         ("GET", "/rest/basket/:id"), ("ANY", "/metrics"), ("POST", "/api/Users")]
+    (tmp_path / "use.txt").write_text("USE /api\n")
+    [use] = load_list(tmp_path / "use.txt").routes
+    assert use.method == "ANY" and use.prefix and use.matches("DELETE", "/api/Users/1")
     bad = tmp_path / "bad.txt"
     bad.write_text("GET basket\n")
     with pytest.raises(ValueError, match="must start with /"):
@@ -128,9 +210,9 @@ def test_import_list_file(tmp_path):
 
 def test_store_replaces_an_earlier_import_of_the_same_file(tmp_path):
     store = RouteStore(str(tmp_path / "p.db"))
-    store.replace("a.json", [Route("GET", "/one", "server"), Route("GET", "/two", "server")])
+    assert store.replace("a.json", [Route("GET", "/one", "server"), Route("GET", "/two", "server")]) == (2, 0)
     store.replace("b.txt", [Route("GET", "/three", "server")])
-    store.replace("a.json", [Route("GET", "/one", "server")])
+    assert store.replace("a.json", [Route("GET", "/one", "server")]) == (1, 2)
     assert [(r.origin, r.pattern) for r in store.all()] == [("b.txt", "/three"), ("a.json", "/one")]
     assert store.origins() == [("a.json", 1), ("b.txt", 1)]
     store.close()
@@ -164,9 +246,12 @@ def test_coverage_sorts_flows_into_tested_untested_unmapped_and_static():
 
 
 def test_coverage_prefers_the_most_specific_route():
-    rs = [Route("ANY", "/api/*", "server"), Route("GET", "/api/Users/:id", "server"), Route("ANY", "/api/Users/:id", "server")]
-    rep = coverage(rs, [flow("GET", "/api/Users/3")])
-    assert [(h.route.method, h.route.pattern) for h in rep.tested] == [("GET", "/api/Users/:id")]
+    rs = [Route("ANY", "/api/*", "server"), Route("GET", "/api/Users/:id", "server"), Route("ANY", "/api/Users/:id", "server"),
+          Route("GET", "/api/Users/me", "server")]
+    rep = coverage(rs, [flow("GET", "/api/Users/3"), flow("GET", "/api/Users/me")])
+    hits = {(h.route.method, h.route.pattern): [f.request.target for f in h.flows] for h in rep.tested}
+    # A literal segment beats :id even though ":id" is the longer string.
+    assert hits == {("GET", "/api/Users/:id"): ["/api/Users/3"], ("GET", "/api/Users/me"): ["/api/Users/me"]}
 
 
 def test_coverage_host_filter():
@@ -176,6 +261,17 @@ def test_coverage_host_filter():
     assert coverage(rs, flows, host="b.test:8443").flows_seen == 1
     assert coverage(rs, flows, host="b.test:80").flows_seen == 0
     assert coverage(rs, flows, host="B.TEST").flows_seen == 1
+    assert coverage(rs, flows, host="*.test").flows_seen == 2
+    v6 = [flow("GET", "/x", host="::1", port=3000)]
+    assert coverage(rs, v6, host="[::1]:3000").flows_seen == 1
+    assert coverage(rs, v6, host="::1").flows_seen == 1
+
+
+def test_report_escapes_control_characters_from_the_app():
+    rs = [Route("GET", "/x\x1b[31m", "server", "srv.ts\r\nUNTESTED", 1)]
+    text = format_report(coverage(rs, []))
+    assert "\x1b" not in text and "\r" not in text
+    assert "/x\\x1b[31m" in text and "srv.ts\\r\\nUNTESTED" in text
 
 
 def test_report_text_and_json():
@@ -232,6 +328,23 @@ def test_cli_import_and_coverage(tmp_path, capsys):
     assert main(["coverage", "-p", db, "--show", "unmapped"]) == 0
     out, _ = capsys.readouterr()
     assert "2 of 17 server routes" in out and "UNMAPPED" not in out
+
+    # Re-importing the same file replaces its earlier routes and says so; a
+    # same-named file elsewhere is a different import.
+    assert main(["import-routes", "-p", db, str(tmp_path / "extra.txt")]) == 0
+    assert "replaced 1 routes imported earlier from this file" in capsys.readouterr()[0]
+    (tmp_path / "other").mkdir()
+    (tmp_path / "other" / "extra.txt").write_text("GET /api/Hints\n")
+    assert main(["import-routes", "-p", db, str(tmp_path / "other" / "extra.txt")]) == 0
+    assert main(["routes", "-p", db, "--contains", "/api/"]) == 0
+    out, err = capsys.readouterr()
+    assert "/api/Challenges" in out and "/api/Hints" in out and "extra.txt (1), extra.txt (1)" in err
+
+    # --host accepts wildcards and ports like `history --host`; --kinds is checked.
+    assert main(["coverage", "-p", db, "--host", "127.*:3000", "--show", "untested"]) == 0
+    assert "across 4 flows" in capsys.readouterr()[0]
+    assert main(["coverage", "-p", db, "--kinds", "server, bogus"]) == 2
+    assert "unknown route kind(s) ['bogus']" in capsys.readouterr()[1]
 
 
 def test_cli_coverage_without_routes_explains(tmp_path, capsys):

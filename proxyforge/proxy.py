@@ -28,6 +28,7 @@ from .http import (
     HttpError,
     Request,
     Response,
+    ShortBody,
     parse_request_head,
     read_body,
     read_head,
@@ -217,7 +218,10 @@ class ProxyServer:
             if req.headers.get("Expect", "").lower() == "100-continue":
                 req.headers.remove("Expect")
                 writer.write(b"HTTP/1.1 100 Continue\r\n\r\n")
-            req.body = await read_body(reader, req.headers)
+            try:
+                req.body = await read_body(reader, req.headers)
+            except ShortBody:
+                return  # the client hung up mid-upload; nothing to answer
             keep_alive = client_wants_keep_alive(req)
 
             if scheme == "http" and req.target.startswith("/"):

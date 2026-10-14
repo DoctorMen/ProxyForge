@@ -21,6 +21,7 @@ import re
 import sqlite3
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
+from fnmatch import fnmatchcase
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -59,13 +60,21 @@ class Route:
         return f"{self.source}:{self.line}" if self.source and self.line else self.source
 
     @property
-    def regex(self) -> re.Pattern:
-        return pattern_regex(self.pattern)
+    def prefix(self) -> bool:
+        """app.use('/x', ...) handles everything under /x, not just /x."""
+        return self.mechanism.rsplit(".", 1)[-1].lower() == "use"
+
+    @property
+    def specificity(self) -> tuple:
+        """Higher wins when several routes match one request: fewest wildcard
+        pieces, then the longer pattern, then a named method over ANY."""
+        wild = sum(2 if kind == "star" else 1 for kind, _, _ in _tokens(self.pattern) if kind != "lit")
+        return (-wild, len(self.pattern), self.method != "ANY")
 
     def matches(self, method: str, path: str) -> bool:
         if self.method != "ANY" and self.method != method.upper():
             return False
-        return self.regex.match(path_only(path)) is not None
+        return match_pattern(self.pattern, path_only(path), prefix=self.prefix)
 
 
 @dataclass
@@ -89,48 +98,96 @@ def path_only(target: str) -> str:
     return path or "/"
 
 
-_PATTERN_CACHE: dict[str, re.Pattern] = {}
+_TOKEN_RE = re.compile(r"(\*+|:[A-Za-z_][A-Za-z0-9_]*(?:\([^()]*\))?\??)")
+_TOKEN_CACHE: dict[str, list[tuple[str, str, bool]]] = {}
 
 
-def pattern_regex(pattern: str) -> re.Pattern:
-    """Compile an Express 4 style path to a regex over the request path.
+def _tokens(pattern: str) -> list[tuple[str, str, bool]]:
+    """Split an Express 4 style path into (kind, text, after_slash) pieces.
 
-    :name      one segment            /api/Users/:id   matches /api/Users/7
-    :name?     optional segment       /files/:name?    matches /files and /files/a
-    *  or **   anything               /ftp/*           matches /ftp/x/y
-    Trailing slashes are ignored and matching is case-insensitive, which is
-    how Express matches by default.
+    kind is "lit" (literal text), "param" (:name, one segment), "opt" (:name?,
+    an optional segment) or "star" (*, anything). after_slash is set when the
+    piece followed a "/", which then belongs to the optional piece, so that
+    /files/:name? matches /files and /ftp/* matches /ftp.
+    A constraint such as :id(\\d+) is matched as a plain segment, and any other
+    regex syntax is taken literally: the matcher never builds a regex from
+    the analysed app's strings, so a hostile route can't make it hang.
     """
-    cached = _PATTERN_CACHE.get(pattern)
+    cached = _TOKEN_CACHE.get(pattern)
     if cached is not None:
         return cached
-    out = []
-    for piece in re.split(r"(\*+|:[A-Za-z_][A-Za-z0-9_]*\??)", pattern):
+    if len(pattern) > 1 and pattern.endswith("/"):
+        pattern = pattern[:-1]
+    out: list[tuple[str, str, bool]] = []
+    for piece in _TOKEN_RE.split(pattern):
         if not piece:
             continue
         if piece.startswith("*"):
-            if out and out[-1].endswith("/"):
-                # "/ftp/*" also covers /ftp and /ftp/ (the star may be empty).
-                out[-1] = out[-1][:-1]
-                out.append("(?:/.*)?")
-            else:
-                out.append(".*")
+            kind = "star"
         elif piece.startswith(":"):
-            if piece.endswith("?"):
-                # The preceding "/" belongs to the optional segment.
-                if out and out[-1].endswith("/"):
-                    out[-1] = out[-1][:-1]
-                out.append("(?:/[^/]+)?")
-            else:
-                out.append("[^/]+")
+            kind = "opt" if piece.endswith("?") else "param"
         else:
-            out.append(re.escape(piece))
-    body = "".join(out)
-    if len(pattern) > 1 and pattern.endswith("/"):
-        body = body[: -len(re.escape("/"))]
-    regex = re.compile("^" + body + "/?$", re.IGNORECASE)
-    _PATTERN_CACHE[pattern] = regex
-    return regex
+            out.append(("lit", piece.lower(), False))
+            continue
+        after_slash = bool(out) and out[-1][0] == "lit" and out[-1][1].endswith("/") and kind != "param"
+        if after_slash:
+            lit = out[-1][1][:-1]
+            out[-1:] = [("lit", lit, False)] if lit else []
+        out.append((kind, piece, after_slash))
+    _TOKEN_CACHE[pattern] = out
+    return out
+
+
+def match_pattern(pattern: str, path: str, prefix: bool = False) -> bool:
+    """Does an Express 4 style pattern match a request path (no query string)?
+
+    :name      one segment            /api/Users/:id   matches /api/Users/7
+    :name?     optional segment       /files/:name?    matches /files and /files/a
+    *  or **   anything               /ftp/*           matches /ftp, /ftp/x/y
+    prefix=True is app.use() semantics: /api also matches /api/anything.
+    Trailing slashes are ignored and matching is case-insensitive, as in
+    Express. This is a small position-set matcher rather than a regex, so
+    its cost is bounded by len(pattern) * len(path) whatever the pattern.
+    """
+    path = path.lower()
+    n = len(path)
+    positions = {0}
+    for kind, text, after_slash in _tokens(pattern):
+        new: set[int] = set()
+        if kind == "lit":
+            new = {p + len(text) for p in positions if path.startswith(text, p)}
+        elif kind == "param":
+            for p in positions:
+                end = path.find("/", p)
+                end = n if end == -1 else end
+                if end > p:
+                    new.add(end)
+        elif kind == "opt":
+            new = set(positions)
+            for p in positions:
+                start = p + 1 if after_slash else p
+                if after_slash and not path.startswith("/", p):
+                    continue
+                end = path.find("/", start)
+                end = n if end == -1 else end
+                if end > start:
+                    new.add(end)
+        else:  # star
+            new = set(positions) if after_slash else set()
+            starts = [p + 1 for p in positions if path.startswith("/", p)] if after_slash else list(positions)
+            if starts:
+                new.update(range(min(starts), n + 1))
+        positions = new
+        if not positions:
+            return False
+    if prefix:
+        return any(p == n or path.startswith("/", p) for p in positions)
+    return n in positions
+
+
+def printable(text: str) -> str:
+    """Strings from the analysed app go to the terminal; keep escapes visible."""
+    return "".join(c if c.isprintable() or c == " " else repr(c)[1:-1] for c in text)
 
 
 # -- importing maps ------------------------------------------------------------
@@ -165,40 +222,52 @@ def load_rea(path: str | Path) -> ImportResult:
         doc = json.load(fh)
     body = doc.get("normalized_result", doc) if isinstance(doc, dict) else {}
     graph = body.get("graph") if isinstance(body, dict) else None
-    if not isinstance(graph, dict) or "nodes" not in graph:
+    if not isinstance(graph, dict) or not isinstance(graph.get("nodes"), list):
         raise ValueError(
             f"{path} is not REA analyze-javascript-application output "
             "(expected normalized_result.graph.nodes)"
         )
-    result = ImportResult(routes=[], stats=dict(body.get("statistics") or {}))
-    seen: dict[tuple[str, str, str], Route] = {}
-    for node in graph["nodes"]:
-        if node.get("kind") != "endpoint":
-            continue
-        for obs in node.get("observations", []):
-            props = obs.get("properties") or {}
-            mechanism, value = props.get("mechanism", ""), props.get("value", "")
-            classified = _classify(mechanism, value)
-            if classified is None:
-                result.skipped[mechanism or "?"] += 1
+    stats = body.get("statistics")
+    result = ImportResult(routes=[], stats=dict(stats) if isinstance(stats, dict) else {})
+    seen: dict[tuple[str, str, str, str], Route] = {}
+    try:
+        for node in graph["nodes"]:
+            if not isinstance(node, dict) or node.get("kind") != "endpoint":
                 continue
-            method, kind = classified
-            key = (method, value, kind)
-            if key in seen:
-                continue
-            loc = ((obs.get("evidence") or {}).get("location") or {})
-            source, line = "", None
-            if loc.get("available") and isinstance(loc.get("value"), dict):
-                source = loc["value"].get("source", "") or ""
-                start = loc["value"].get("start") or {}
-                line = start.get("line")
-            seen[key] = Route(method, value, kind, source, line, mechanism, path.name)
+            for obs in node.get("observations") or []:
+                if not isinstance(obs, dict):
+                    continue
+                props = obs.get("properties")
+                if not isinstance(props, dict):
+                    continue
+                mechanism, value = str(props.get("mechanism", "")), props.get("value", "")
+                classified = _classify(mechanism, value)
+                if classified is None:
+                    result.skipped[mechanism or "?"] += 1
+                    continue
+                method, kind = classified
+                loc = (obs.get("evidence") or {}).get("location") or {}
+                source, line = "", None
+                if isinstance(loc, dict) and loc.get("available") and isinstance(loc.get("value"), dict):
+                    source = str(loc["value"].get("source", "") or "")
+                    start = loc["value"].get("start")
+                    line = start.get("line") if isinstance(start, dict) else None
+                # The same registration repeated in one file is one route; the
+                # same pattern in another file (router.get("/") in each routes/*.ts)
+                # is another endpoint, so the file is part of the key.
+                key = (method, value, kind, source)
+                if key in seen:
+                    continue
+                seen[key] = Route(method, value, kind, source, line, mechanism, path.name)
+    except (TypeError, AttributeError, KeyError) as exc:
+        raise ValueError(f"{path} is not well-formed REA output ({type(exc).__name__}: {exc})") from exc
     result.routes = list(seen.values())
 
     # REA tells you when it ran out of room; the usual fix is to point it at
     # a smaller folder (the server code without the frontend and test data).
+    limitations = body.get("limitations")
     starved = sorted({
-        m.group(1) for text in body.get("limitations", []) if isinstance(text, str)
+        m.group(1) for text in (limitations if isinstance(limitations, list) else []) if isinstance(text, str)
         for m in [re.match(r"^(\S+): Resource constraint", text)] if m
     })
     if starved:
@@ -209,7 +278,8 @@ def load_rea(path: str | Path) -> ImportResult:
             f"({shown}). Routes registered there may be missing: run REA on the folder that "
             "holds the server code only (not the frontend or test data)."
         )
-    coverage = graph.get("coverage") or {}
+    coverage = graph.get("coverage")
+    coverage = coverage if isinstance(coverage, dict) else {}
     if coverage.get("status") not in (None, "complete"):
         result.warnings.append(f"REA reports graph coverage '{coverage.get('status')}'; "
                                "treat missing routes as unknown, not absent.")
@@ -217,7 +287,10 @@ def load_rea(path: str | Path) -> ImportResult:
 
 
 def load_list(path: str | Path) -> ImportResult:
-    """Read 'METHOD /path' or '/path' lines (any method); '#' starts a comment."""
+    """Read 'METHOD /path' or '/path' lines (any method); '#' starts a comment.
+
+    USE /path means app.use() semantics: the route owns everything under /path.
+    """
     path = Path(path)
     result = ImportResult(routes=[])
     for n, raw in enumerate(path.read_text().splitlines(), 1):
@@ -231,12 +304,13 @@ def load_list(path: str | Path) -> ImportResult:
             method, pattern = parts[0].upper(), parts[1]
         else:
             raise ValueError(f"{path}:{n}: expected 'METHOD /path' or '/path', got {raw!r}")
-        if method not in set(ROUTE_VERBS.values()) | {"ANY", "*"}:
+        if method not in set(ROUTE_VERBS.values()) | {"ANY", "*", "USE"}:
             raise ValueError(f"{path}:{n}: unknown method {method!r}")
         if not pattern.startswith("/"):
             raise ValueError(f"{path}:{n}: path must start with /, got {pattern!r}")
-        result.routes.append(Route("ANY" if method == "*" else method, pattern, "server",
-                                   path.name, n, "list", path.name))
+        mechanism = "list.use" if method == "USE" else "list"
+        result.routes.append(Route("ANY" if method in ("*", "USE") else method, pattern, "server",
+                                   path.name, n, mechanism, path.name))
     return result
 
 
@@ -266,15 +340,19 @@ class RouteStore:
     def close(self) -> None:
         self.db.close()
 
-    def replace(self, origin: str, routes: list[Route]) -> int:
-        """Store routes for one origin file, dropping that file's earlier import."""
-        self.db.execute("DELETE FROM routes WHERE origin = ?", (origin,))
+    def replace(self, origin: str, routes: list[Route]) -> tuple[int, int]:
+        """Store routes for one origin, dropping that origin's earlier import.
+
+        Returns (stored, deleted). Callers key origin by the file's full path so
+        two different files that share a name don't overwrite each other.
+        """
+        deleted = self.db.execute("DELETE FROM routes WHERE origin = ?", (origin,)).rowcount
         self.db.executemany(
             "INSERT INTO routes (origin, kind, method, pattern, mechanism, source, line) VALUES (?,?,?,?,?,?,?)",
             [(origin, r.kind, r.method, r.pattern, r.mechanism, r.source, r.line) for r in routes],
         )
         self.db.commit()
-        return len(routes)
+        return len(routes), deleted
 
     def all(self, kinds: tuple[str, ...] | None = None) -> list[Route]:
         rows = self.db.execute(
@@ -348,6 +426,23 @@ class Report:
         }
 
 
+def split_host(host: str) -> tuple[str, int | None]:
+    """'Example.com:8443' -> ('example.com', 8443); '[::1]:3000' -> ('::1', 3000).
+
+    The host part may hold * wildcards, as `proxyforge history --host` allows.
+    """
+    if host.count(":") > 1 and not host.startswith("["):
+        host = f"[{host}]"  # a bare IPv6 address, as `history --host ::1` takes it
+    try:
+        parts = urlsplit("//" + host)
+        hostname, port = parts.hostname, parts.port
+    except ValueError as exc:
+        raise ValueError(f"bad --host {host!r}: {exc}") from exc
+    if not hostname:
+        raise ValueError(f"bad --host {host!r}")
+    return hostname.lower(), port
+
+
 def coverage(routes: list[Route], flows: list[Flow], host: str | None = None,
              kinds: tuple[str, ...] = ("server", "router")) -> Report:
     """Match recorded flows against the route map.
@@ -357,17 +452,18 @@ def coverage(routes: list[Route], flows: list[Flow], host: str | None = None,
     """
     routes = [r for r in routes if r.kind in kinds]
     if host:
-        hostname = host.split(":")[0].lower()
-        flows = [f for f in flows if f.host.lower() == hostname
-                 and (":" not in host or f.port == int(host.rsplit(":", 1)[1]))]
+        hostname, port = split_host(host)
+        flows = [f for f in flows if fnmatchcase(f.host.lower(), hostname)
+                 and (port is None or f.port == port)]
     hits: dict[int, list[Flow]] = defaultdict(list)
     loose: dict[tuple[str, str], list[Flow]] = defaultdict(list)
     for flow in flows:
         method, path = flow.request.method.upper(), path_only(flow.request.target)
-        # Longest pattern wins so /api/Users/:id beats /api/Users/* style overlaps.
+        # The most specific route wins, as in Express when the literal route is
+        # registered first: /api/Users/me beats /api/Users/:id beats /api/*.
         candidates = [i for i, r in enumerate(routes) if r.matches(method, path)]
         if candidates:
-            best = max(candidates, key=lambda i: (len(routes[i].pattern), routes[i].method != "ANY"))
+            best = max(candidates, key=lambda i: routes[i].specificity)
             hits[best].append(flow)
         else:
             loose[(method, path)].append(flow)
@@ -400,7 +496,7 @@ def format_report(report: Report, show: str = "all", examples: int = 5) -> str:
         lines.append("UNTESTED  (try these next)")
         for r in sorted(report.untested, key=lambda r: (r.pattern.lower(), _method_key(r.method))):
             tag = "  (router; mount point unknown)" if r.kind == "router" else ""
-            lines.append(f"  {r.method:<7} {r.pattern:<50} {r.where}{tag}")
+            lines.append(f"  {r.method:<7} {printable(r.pattern):<50} {printable(r.where)}{tag}")
     if show in ("all", "tested") and report.tested:
         lines.append("")
         lines.append("TESTED")
@@ -408,7 +504,7 @@ def format_report(report: Report, show: str = "all", examples: int = 5) -> str:
             ids = " ".join(f"#{f.id}" for f in h.flows[:examples] if f.id is not None)
             more = f" +{len(h.flows) - examples}" if len(h.flows) > examples else ""
             statuses = " ".join(str(s) for s in h.statuses) or "no response"
-            lines.append(f"  {h.route.method:<7} {h.route.pattern:<50} {len(h.flows):>3} flows  "
+            lines.append(f"  {h.route.method:<7} {printable(h.route.pattern):<50} {len(h.flows):>3} flows  "
                          f"status {statuses:<12} {ids}{more}")
     if show in ("all", "unmapped") and report.unmapped:
         lines.append("")
@@ -416,11 +512,12 @@ def format_report(report: Report, show: str = "all", examples: int = 5) -> str:
                      "mounted routers, or code the recon tool could not read)")
         for u in report.unmapped:
             ids = " ".join(f"#{f.id}" for f in u.flows[:examples] if f.id is not None)
-            lines.append(f"  {u.method:<7} {u.path:<50} {len(u.flows):>3} flows  {ids}")
+            lines.append(f"  {u.method:<7} {printable(u.path):<50} {len(u.flows):>3} flows  {ids}")
     return "\n".join(lines)
 
 
 __all__ = [
     "Route", "ImportResult", "RouteStore", "Report", "Hit", "Unmapped",
-    "load_rea", "load_list", "coverage", "format_report", "pattern_regex", "path_only",
+    "load_rea", "load_list", "coverage", "format_report", "match_pattern", "path_only",
+    "printable", "split_host",
 ]

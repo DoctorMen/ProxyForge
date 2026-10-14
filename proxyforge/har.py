@@ -10,12 +10,13 @@ from __future__ import annotations
 import base64
 import datetime as dt
 import json
+import re
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qsl, quote, urlsplit
 
 from . import __version__
 from .history import Flow
-from .http import Headers, decode_content
+from .http import Headers, decode_content_info
 
 
 def _text_or_base64(body: bytes) -> dict:
@@ -52,16 +53,21 @@ def _response_cookies(headers: Headers) -> list[dict]:
 
 
 def clean_url(url: str) -> str:
-    """Percent-encode characters a browser leaves raw (spaces, [, ], quotes, non-ASCII).
+    """Percent-encode what a client left raw: spaces, [ ], quotes, a lone %, non-ASCII.
 
-    Browsers send such paths as-is, but HAR consumers that validate the
-    schema (REA does) reject any URL that is not valid RFC 3986.
+    Clients send such paths as-is, but HAR consumers that validate the
+    schema (REA does) reject any URL that is not valid RFC 3986. Request
+    targets are stored as latin-1 text, one character per wire byte, so the
+    bytes are encoded exactly as they were sent: a raw UTF-8 "é" becomes
+    %C3%A9, not a re-encoding of the mojibake.
     """
     scheme, sep, rest = url.partition("://")
     if not sep:
         return url
     authority, slash, path = rest.partition("/")
-    return scheme + sep + authority + slash + quote(path, safe="/:@!$&'()*+,;=%~-._?")
+    path = re.sub(r"%(?![0-9A-Fa-f]{2})", "%25", path)
+    return scheme + sep + authority + slash + quote(path.encode("latin-1", "replace"),
+                                                   safe="/:@!$&'()*+,;=%~-._?")
 
 
 def flow_to_entry(flow: Flow) -> dict:
@@ -89,7 +95,7 @@ def flow_to_entry(flow: Flow) -> dict:
             **post,
         }
     if resp is not None:
-        content = decode_content(resp.body, resp.headers)
+        content, cut = decode_content_info(resp.body, resp.headers)
         response = {
             "status": resp.status,
             "statusText": resp.reason,
@@ -105,6 +111,8 @@ def flow_to_entry(flow: Flow) -> dict:
             "headersSize": len(resp.head_bytes()),
             "bodySize": len(resp.body),
         }
+        if cut:
+            response["content"]["comment"] = f"decoded body cut at {len(content)} bytes"
     else:
         response = {
             "status": 0, "statusText": "", "httpVersion": "", "headers": [], "cookies": [],

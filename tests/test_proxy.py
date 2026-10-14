@@ -245,3 +245,21 @@ def test_har_urls_are_valid_rfc3986(make_proxy, http_app, tmp_path):
     assert main(["har", "-p", proxy.db_path, str(out)]) == 0
     [entry] = json.loads(out.read_text())["log"]["entries"]
     assert entry["request"]["url"] == f"http://127.0.0.1:{http_app}/files/%5B1%5D%20x/a?q=%5B2%5D"
+
+
+def test_short_chunked_body_keeps_the_partial_chunk(make_proxy, cut_chunk_app):
+    proxy = make_proxy()
+    resp, body = via_proxy(proxy, "GET", f"http://127.0.0.1:{cut_chunk_app}/")
+    assert (resp.status, body) == (200, b"helloonly twelve!")
+    [flow] = proxy.history.query()
+    assert flow.note == "server closed the connection after 17 of an unknown number of chunked body bytes"
+
+
+def test_client_that_hangs_up_mid_upload_gets_no_400(make_proxy, http_app):
+    proxy = make_proxy()
+    with socket.create_connection(("127.0.0.1", proxy.port), timeout=5) as sock:
+        sock.sendall(f"POST http://127.0.0.1:{http_app}/echo HTTP/1.1\r\nHost: x\r\n"
+                     f"Content-Length: 100\r\n\r\nhalf".encode())
+        sock.shutdown(socket.SHUT_WR)
+        assert sock.recv(1024) == b""  # the proxy just closes; no "400" blaming the server
+    assert proxy.history.count() == 0

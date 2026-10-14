@@ -186,7 +186,8 @@ async def _read_chunked(reader: asyncio.StreamReader) -> bytes:
     try:
         return await _read_chunks(reader, body)
     except asyncio.IncompleteReadError as exc:
-        raise ShortBody(bytes(body), None) from exc
+        # exc.partial holds the start of the chunk being read when the peer hung up.
+        raise ShortBody(bytes(body) + exc.partial, None) from exc
 
 
 async def _read_chunks(reader: asyncio.StreamReader, body: bytearray) -> bytes:
@@ -287,29 +288,59 @@ def strip_hop_by_hop(headers: Headers, keep_upgrade: bool = False) -> Headers:
     return out
 
 
-def decode_content(body: bytes, headers: Headers) -> bytes:
-    """Undo Content-Encoding so a body can be read. Unknown encodings pass through.
+DECODE_LIMIT = 4 * MAX_BODY  # a stored body may inflate this far (256 MiB), no further
 
-    gzip and deflate always work. Brotli needs the optional `brotli` package;
-    without it the proxy asks servers for gzip/deflate instead (see proxy.py).
+
+def _inflate(data: bytes, wbits: int, limit: int) -> tuple[bytes, bool]:
+    """zlib/gzip decode with an output cap. gzip bodies may hold several members."""
+    out = bytearray()
+    while data:
+        d = zlib.decompressobj(wbits)
+        try:
+            out += d.decompress(data, limit - len(out) + 1)
+        except zlib.error:
+            if not out:
+                raise
+            break  # trailing junk after a good member: keep what decoded
+        if len(out) > limit or d.unconsumed_tail:
+            del out[limit:]
+            return bytes(out), True
+        if not d.eof or wbits != 16 + zlib.MAX_WBITS:
+            break
+        data = d.unused_data  # another gzip member may follow (RFC 1952)
+    return bytes(out), False
+
+
+def decode_content_info(body: bytes, headers: Headers) -> tuple[bytes, bool]:
+    """Undo Content-Encoding so a body can be read: (decoded, cut_at_limit).
+
+    gzip and deflate always work and are capped at DECODE_LIMIT so a
+    compression bomb from the target can't eat all memory. Brotli needs the
+    optional `brotli` package; without it the proxy asks servers for
+    gzip/deflate instead (see proxy.py). Unknown or corrupt data passes
+    through unchanged.
     """
     encoding = (headers.get("Content-Encoding") or "").lower().strip()
     if not body or encoding in ("", "identity"):
-        return body
+        return body, False
     try:
-        if encoding == "gzip" or encoding == "x-gzip":
-            return zlib.decompress(body, 16 + zlib.MAX_WBITS)
+        if encoding in ("gzip", "x-gzip"):
+            return _inflate(body, 16 + zlib.MAX_WBITS, DECODE_LIMIT)
         if encoding == "deflate":
             try:
-                return zlib.decompress(body)
+                return _inflate(body, zlib.MAX_WBITS, DECODE_LIMIT)
             except zlib.error:
-                return zlib.decompress(body, -zlib.MAX_WBITS)
+                return _inflate(body, -zlib.MAX_WBITS, DECODE_LIMIT)
         if encoding == "br":
             try:
                 import brotli
             except ImportError:
-                return body
-            return brotli.decompress(body)
+                return body, False
+            return brotli.decompress(body), False
     except Exception:  # corrupt data: show the raw bytes rather than nothing
-        return body
-    return body
+        return body, False
+    return body, False
+
+
+def decode_content(body: bytes, headers: Headers) -> bytes:
+    return decode_content_info(body, headers)[0]

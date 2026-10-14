@@ -2394,5 +2394,5 @@
    "server.ts: Resource constraint during analyze_javascript_application: server.ts: Resource constraint during analyze_javascript_application: The parent reserved its remaining result capacity for static observations; semantic analysis of server.ts was not started"
   ]
  },
- "_note": "Trimmed from real `rea analyze-javascript-application` 6.4.0 output for OWASP Juice Shop 20.3.0 (server.ts, routes/, lib/, models/). Nodes are verbatim; most nodes, all edges and the semantic graph were dropped to keep it small."
+ "_note": "Trimmed from real `rea analyze-javascript-application` 6.4.0 output for OWASP Juice Shop 20.3.0. Endpoint nodes are verbatim from a run over the server code only (server.ts, routes/, lib/, models/); most nodes, all edges and the semantic graph were dropped to keep the file small. Three pieces come from other real runs of the same version so the importer's other branches can be tested: the `**` SPA page node, the `server.ts: Resource constraint` limitation and `graph.coverage.status: partial` are from the whole-repository run (where REA ran out of result budget and skipped server.ts), and the `call:fetch /api/Challenges/` client node is from a run over the built frontend bundle."
 }

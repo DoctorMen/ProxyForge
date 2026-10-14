@@ -15,7 +15,7 @@ from .ca import CertAuthority
 from .client import OutOfScope, check_scope, default_context, send
 from .compare import body_diff, header_changes
 from .history import History
-from .http import Headers, HttpError, decode_content
+from .http import Headers, HttpError, decode_content, decode_content_info
 from .proxy import ProxyServer, split_absolute_url, split_authority
 from .repeater import apply_edits, describe, from_raw, to_raw
 from .rules import RuleSet
@@ -47,10 +47,11 @@ def _filters(args) -> dict:
 
 def _response_text(resp, limit: int = 4000) -> str:
     """Status line, headers and the body with Content-Encoding undone."""
-    body = decode_content(resp.body, resp.headers)
+    body, cut = decode_content_info(resp.body, resp.headers)
     note = ""
     if body is not resp.body and body != resp.body:
-        note = f"[body decoded from {resp.headers.get('Content-Encoding')}: {len(resp.body)}B -> {len(body)}B]\n"
+        note = f"[body decoded from {resp.headers.get('Content-Encoding')}: {len(resp.body)}B -> {len(body)}B"
+        note += ", cut at the decode limit]\n" if cut else "]\n"
     return f"{resp.version} {resp.status} {resp.reason}\n" + _headers_text(resp.headers) + "\n" + note + _body_text(body, limit)
 
 
@@ -215,7 +216,7 @@ def cmd_repeat(args) -> int:
         print(f"refused: {exc}", file=sys.stderr)
         return 3
     flow = asyncio.run(send(scheme, host, port, req, default_context(args.insecure), args.timeout))
-    flow.note = note
+    flow.note = f"{note}; {flow.note}" if flow.note else note  # keep a short-body note
     if not args.no_save:
         history.add(flow)
     if args.show_request:
@@ -319,24 +320,24 @@ def _print_import(result: routes.ImportResult, origin: str, stored: int) -> None
     print("  next: proxyforge coverage -p PROJECT [--host HOST]")
 
 
-def cmd_import_rea(args) -> int:
-    result = routes.load_rea(args.file)
+def _store_routes(args, result: routes.ImportResult) -> int:
     store = routes.RouteStore(args.project)
-    origin = Path(args.file).name
-    stored = store.replace(origin, result.routes)
+    # Keyed by full path, so two files that share a name don't replace each other.
+    origin = str(Path(args.file).resolve())
+    stored, deleted = store.replace(origin, result.routes)
     store.close()
-    _print_import(result, origin, stored)
+    _print_import(result, Path(args.file).name, stored)
+    if deleted:
+        print(f"  replaced {deleted} routes imported earlier from this file")
     return 0 if result.routes else 1
+
+
+def cmd_import_rea(args) -> int:
+    return _store_routes(args, routes.load_rea(args.file))
 
 
 def cmd_import_routes(args) -> int:
-    result = routes.load_list(args.file)
-    store = routes.RouteStore(args.project)
-    origin = Path(args.file).name
-    stored = store.replace(origin, result.routes)
-    store.close()
-    _print_import(result, origin, stored)
-    return 0 if result.routes else 1
+    return _store_routes(args, routes.load_list(args.file))
 
 
 def cmd_routes(args) -> int:
@@ -349,8 +350,8 @@ def cmd_routes(args) -> int:
     if args.contains:
         items = [r for r in items if args.contains in r.pattern]
     for r in items:
-        print(f"{r.method:<7} {r.pattern:<50} {r.kind:<7} {r.where}")
-    origins = ", ".join(f"{o} ({n})" for o, n in store.origins()) or "none"
+        print(f"{r.method:<7} {routes.printable(r.pattern):<50} {r.kind:<7} {routes.printable(r.where)}")
+    origins = ", ".join(f"{Path(o).name} ({n})" for o, n in store.origins()) or "none"
     print(f"{len(items)} routes; imports: {origins}", file=sys.stderr)
     return 0
 
@@ -362,10 +363,15 @@ def cmd_coverage(args) -> int:
         print("no routes imported yet: run `proxyforge import-rea FILE.json` or "
               "`proxyforge import-routes routes.txt` first", file=sys.stderr)
         return 1
+    kinds = tuple(k.strip() for k in args.kinds.split(",") if k.strip())
+    unknown = sorted(set(kinds) - {"server", "router", "client", "spa"})
+    if unknown or not kinds:
+        print(f"error: unknown route kind(s) {unknown}; choose from server, router, client, spa",
+              file=sys.stderr)
+        return 2
     history = History(args.project)
-    # The history filter knows hosts, not ports; coverage() applies the port.
-    flows = history.query(host=args.host.rsplit(":", 1)[0] if args.host else None)
-    kinds = tuple(args.kinds.split(","))
+    # The history filter knows hosts (with wildcards), not ports; coverage() applies the port.
+    flows = history.query(host=routes.split_host(args.host)[0] if args.host else None)
     report = routes.coverage(all_routes, flows, host=args.host, kinds=kinds)
     if args.json:
         print(json.dumps(report.to_dict(), indent=2))

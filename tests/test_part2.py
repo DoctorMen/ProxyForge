@@ -172,9 +172,17 @@ def test_decode_cli(capsys):
     assert main(["decode", "plain words"]) == 1
 
 
-def test_repeater_keeps_a_short_body(http_app):
+def test_repeater_keeps_a_short_body(http_app, tmp_path, capsys):
     import asyncio
     from proxyforge.client import send
     flow = asyncio.run(send("http", "127.0.0.1", http_app, Request("GET", "/short")))
     assert flow.response.body == b"only twelve!"
     assert "12 of 20 promised" in flow.note
+    # The command keeps that note on the stored flow next to its own.
+    db = str(tmp_path / "p.db")
+    raw = tmp_path / "req.http"
+    raw.write_text("GET /short HTTP/1.1\n\n")
+    assert main(["repeat", "-p", db, "--raw", str(raw), "--url", f"http://127.0.0.1:{http_app}", "--no-scope"]) == 0
+    assert "[note: server closed the connection after 12 of 20 promised body bytes]" in capsys.readouterr()[0]
+    stored = History(db).get(1)
+    assert stored.note == f"repeater: from {raw}; server closed the connection after 12 of 20 promised body bytes"

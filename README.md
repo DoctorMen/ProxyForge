@@ -45,7 +45,7 @@ git clone https://github.com/DoctorMen/proxyforge
 cd proxyforge
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[test]"
-pytest            # expect: 106 passed
+pytest            # expect: 124 passed, 1 skipped
 ```
 
 ## Do it yourself: capture your first traffic
@@ -285,9 +285,9 @@ proxyforge har -p lab.db lab.har
 HAR is the format browser dev tools use. The file opens in Chrome or Firefox
 dev tools (Network tab, import), in OWASP ZAP, and in
 [REA](https://github.com/morluto/rea) for deeper analysis of the captured
-traffic (`rea inspect-web-network-capture lab.har har`). URLs are
-percent-encoded on the way out, because browsers send characters like `[`
-raw and strict HAR readers reject them.
+traffic: `rea inspect-web-network-capture "$PWD/lab.har" har` (REA wants an
+absolute path). URLs are percent-encoded on the way out, because browsers
+send characters like `[` raw and strict HAR readers reject them.
 
 ## Coverage: what the code has vs. what you tested
 
@@ -328,10 +328,10 @@ imported 105 routes from juice-server.json: 2 router, 103 server
   next: proxyforge coverage -p PROJECT [--host HOST]
 
 Coverage for 127.0.0.1:3000: 37 of 105 server routes hit (35%) across 138 flows
-  untested     68   routes in the map you never sent a request to
-  tested       37   routes seen in history
-  unmapped     10   paths you hit that the map has no route for
-  static       49   files (js, css, images) not counted
+  untested   68   routes in the map you never sent a request to
+  tested     37   routes seen in history
+  unmapped   10   paths you hit that the map has no route for
+  static     49   files (js, css, images) not counted
 
 UNTESTED  (try these next)
   POST    /                                                  routes/dataErasure.ts:74  (router; mount point unknown)
@@ -342,8 +342,7 @@ TESTED
   GET     /rest/basket/:id                                     3 flows  status 200          #97 #98 #99
   PUT     /rest/basket/:id/coupon/:coupon                      1 flows  status 404          #135
   ...
-UNMAPPED  (seen in history, no route in the map: middleware, generated CRUD,
-mounted routers, or code the recon tool could not read)
+UNMAPPED  (seen in history, no route in the map: middleware, generated CRUD, mounted routers, or code the recon tool could not read)
   GET     /api/Challenges                                      4 flows  #34 #37 #73 #112
   GET     /api/Feedbacks                                       1 flows  #68
   GET     /ftp                                                 1 flows  #109
@@ -366,7 +365,12 @@ How to read it:
 prints only the to-do list; `routes` lists the imported map.
 
 Patterns follow Express: `:name` is one path segment, `:name?` optional,
-`*` anything, matching ignores case and trailing slashes.
+`*` anything (`/ftp/*` also counts `/ftp` itself), matching ignores case
+and trailing slashes. `USE /api` in a text list means `app.use()`: the
+route owns everything under `/api`. A constraint like `:id(\d+)` is
+matched as a plain segment and any other regex syntax in a route is taken
+literally; the matcher never compiles the app's strings into a regex, so a
+hostile route can't make the report hang.
 
 ## How it works
 
@@ -396,9 +400,9 @@ browser --"CONNECT site:443"-------------> proxy
 
 Two things the proxy does to keep recorded bodies useful:
 
-- It narrows the browser's `Accept-Encoding` to `gzip, deflate`, which the
-  standard library can decode, so `show`, `diff` and the HAR export can read
-  every body. Chrome asks for brotli and zstd otherwise. Pass
+- It drops the codings the standard library can't decode (Chrome asks for
+  brotli and zstd) from the browser's `Accept-Encoding`, leaving gzip and
+  deflate, so `show`, `diff` and the HAR export can read every body. Pass
   `--keep-accept-encoding` to send the header through unchanged.
 - When a server promises a `Content-Length` and hangs up early (Juice Shop's
   `/ftp` listing does: 11339 promised, 11327 sent), the bytes that did arrive
@@ -412,7 +416,7 @@ are passed through but not recorded.
 
 ## Tests
 
-`pytest` runs 106 tests. The end-to-end tests start real HTTP and HTTPS
+`pytest` runs 125 tests. The end-to-end tests start real HTTP and HTTPS
 servers on 127.0.0.1 and send traffic through a running proxy. They check,
 among other things, that:
 
@@ -423,8 +427,9 @@ among other things, that:
 - match-and-replace rules change the traffic and are logged per request;
 - a short body (wrong Content-Length) is kept and noted, not turned into a 502;
 - the REA import reads real `analyze-javascript-application` output
-  (`tests/fixtures/rea-juice-shop.json`, trimmed from a Juice Shop run) and
-  the coverage report sorts flows into tested, untested, unmapped and static.
+  (`tests/fixtures/rea-juice-shop.json`, trimmed from Juice Shop runs; its
+  `_note` says which run each piece came from) and the coverage report sorts
+  flows into tested, untested, unmapped and static.
 
 CI runs them on Python 3.11 to 3.13, then smoke-tests the real CLI with curl.
 
