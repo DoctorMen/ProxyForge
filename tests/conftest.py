@@ -61,6 +61,14 @@ class AppHandler(http.server.BaseHTTPRequestHandler):
         elif self.path == "/nocontent":
             self.send_response(204)
             self.end_headers()
+        elif self.path == "/short":
+            # Promises 20 bytes, sends 12, hangs up: a wrong Content-Length.
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.send_header("Content-Length", "20")
+            self.end_headers()
+            self.wfile.write(b"only twelve!")
+            self.close_connection = True
         else:
             self._send(404, b"not found")
 
@@ -113,6 +121,24 @@ class UpgradeHandler(socketserver.StreamRequestHandler):
                          b"Connection: Upgrade\r\n\r\n")
         while data := self.request.recv(1024):
             self.request.sendall(data.upper())
+
+
+class CutChunkHandler(socketserver.StreamRequestHandler):
+    """Starts a 20-byte chunk, sends 12 bytes of it, then hangs up."""
+
+    def handle(self):
+        while self.rfile.readline() not in (b"\r\n", b""):
+            pass
+        self.wfile.write(b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
+                         b"5\r\nhello\r\n14\r\nonly twelve!")
+
+
+@pytest.fixture(scope="session")
+def cut_chunk_app():
+    server = _serve(socketserver.ThreadingTCPServer(("127.0.0.1", 0), CutChunkHandler))
+    server.daemon_threads = True
+    yield server.server_address[1]
+    server.shutdown()
 
 
 @pytest.fixture(scope="session")

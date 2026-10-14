@@ -4,16 +4,20 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import os
 import ssl
 import sys
 from pathlib import Path
 
-from . import __version__, har
+from . import __version__, codec, har, routes
 from .ca import CertAuthority
+from .client import OutOfScope, check_scope, default_context, send
+from .compare import body_diff, header_changes
 from .history import History
-from .http import Headers
-from .proxy import ProxyServer, split_authority
+from .http import Headers, HttpError, decode_content, decode_content_info
+from .proxy import ProxyServer, split_absolute_url, split_authority
+from .repeater import apply_edits, describe, from_raw, to_raw
 from .rules import RuleSet
 from .scope import Scope
 
@@ -41,6 +45,16 @@ def _filters(args) -> dict:
     return dict(host=args.host, method=args.method, status=args.status, contains=args.contains)
 
 
+def _response_text(resp, limit: int = 4000) -> str:
+    """Status line, headers and the body with Content-Encoding undone."""
+    body, cut = decode_content_info(resp.body, resp.headers)
+    note = ""
+    if body is not resp.body and body != resp.body:
+        note = f"[body decoded from {resp.headers.get('Content-Encoding')}: {len(resp.body)}B -> {len(body)}B"
+        note += ", cut at the decode limit]\n" if cut else "]\n"
+    return f"{resp.version} {resp.status} {resp.reason}\n" + _headers_text(resp.headers) + "\n" + note + _body_text(body, limit)
+
+
 def cmd_run(args) -> int:
     ca = CertAuthority(args.ca_dir)
     scope = Scope.load(args.scope) if args.scope else Scope()
@@ -56,7 +70,8 @@ def cmd_run(args) -> int:
               file=sys.stderr)
     history = History(args.project)
     proxy = ProxyServer(ca, history, scope, rules, listen_host=host, listen_port=port,
-                        upstream_ssl=upstream, record_out_of_scope=args.record_out_of_scope)
+                        upstream_ssl=upstream, record_out_of_scope=args.record_out_of_scope,
+                        readable_bodies=not args.keep_accept_encoding)
 
     async def main():
         bound = await proxy.start()
@@ -111,11 +126,11 @@ def cmd_show(args) -> int:
         if flow.response is None:
             print(f"(no response: {flow.error})")
         else:
-            s = flow.response
-            print(f"{s.version} {s.status} {s.reason}")
-            print(_headers_text(s.headers) + "\n" + _body_text(s.body), end="")
+            print(_response_text(flow.response), end="")
     if flow.rules_fired:
         print(f"\n[match/replace rules applied: {flow.rules_fired}]")
+    if flow.note:
+        print(f"\n[note: {flow.note}]")
     return 0
 
 
@@ -135,6 +150,237 @@ def cmd_scope(args) -> int:
         code |= 0 if ok else 1
         print(f"{'IN ' if ok else 'OUT'}  {url}")
     return code
+
+
+def _read_body_arg(value: str | None) -> bytes | None:
+    if value is None:
+        return None
+    if value.startswith("@"):
+        return Path(value[1:]).read_bytes()
+    return value.encode()
+
+
+def _edit_in_editor(text: str) -> str:
+    import subprocess
+    import tempfile
+    editor = os.environ.get("VISUAL") or os.environ.get("EDITOR") or "nano"
+    with tempfile.NamedTemporaryFile("w+", suffix=".http", delete=False) as fh:
+        fh.write(text)
+        name = fh.name
+    try:
+        subprocess.run([*editor.split(), name], check=True)
+        return Path(name).read_text()
+    finally:
+        os.unlink(name)
+
+
+def _print_response(flow, body_limit: int) -> None:
+    if flow.response is None:
+        return
+    print(_response_text(flow.response, body_limit), end="")
+
+
+def cmd_repeat(args) -> int:
+    history = History(args.project)
+    if args.raw:
+        if not args.url:
+            print("--raw needs --url to say where to send it, e.g. --url https://example.com", file=sys.stderr)
+            return 2
+        req = from_raw(Path(args.raw).read_text())
+        scheme = host = port = None
+        note = f"repeater: from {args.raw}"
+    else:
+        if args.id is None:
+            print("give a flow id, or --raw FILE --url URL", file=sys.stderr)
+            return 2
+        source = history.get(args.id)
+        if source is None:
+            print(f"no flow {args.id}", file=sys.stderr)
+            return 1
+        req, scheme, host, port = source.request, source.scheme, source.host, source.port
+        note = f"repeater: from flow {args.id}"
+    if args.url:
+        scheme, host, port, base_path = split_absolute_url(args.url)
+        if args.raw is None and base_path != "/" and not args.path:
+            args.path = base_path
+        req.headers.remove("Host")
+    req = apply_edits(req, method=args.method, path=args.path, set_headers=args.header,
+                      body=_read_body_arg(args.body))
+    if args.edit:
+        req = from_raw(_edit_in_editor(to_raw(req)))
+    target_url = f"{scheme}://{host}:{port}{req.target}"
+    scope = Scope.load(args.scope) if args.scope else None
+    try:
+        check_scope(target_url, scope, args.no_scope)
+    except OutOfScope as exc:
+        print(f"refused: {exc}", file=sys.stderr)
+        return 3
+    flow = asyncio.run(send(scheme, host, port, req, default_context(args.insecure), args.timeout))
+    flow.note = f"{note}; {flow.note}" if flow.note else note  # keep a short-body note
+    if not args.no_save:
+        history.add(flow)
+    if args.show_request:
+        print(to_raw(flow.request).rstrip("\n") + "\n\n" + "-" * 60)
+    print(describe(flow), file=sys.stderr)
+    _print_response(flow, args.limit)
+    if flow.response is not None and flow.response.incomplete:
+        print(f"[note: {flow.response.incomplete}]")
+    return 0 if flow.response is not None else 1
+
+
+def cmd_raw(args) -> int:
+    flow = History(args.project).get(args.id)
+    if flow is None:
+        print(f"no flow {args.id}", file=sys.stderr)
+        return 1
+    sys.stdout.write(to_raw(flow.request))
+    return 0
+
+
+def _input_bytes(text: str | None) -> bytes:
+    if text is None or text == "-":
+        return sys.stdin.buffer.read().rstrip(b"\n")
+    return text.encode()
+
+
+def _show_bytes(data: bytes) -> str:
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        return "hex: " + data.hex()
+
+
+def cmd_decode(args) -> int:
+    data = _input_bytes(args.text)
+    if args.chain:
+        print(_show_bytes(codec.decode(data, args.chain.split(","))))
+        return 0
+    steps = codec.smart_decode(data)
+    if not steps:
+        print("no known encoding detected; try -c with one of: " + ", ".join(codec.DECODERS),
+              file=sys.stderr)
+        return 1
+    for i, (name, out) in enumerate(steps, 1):
+        print(f"[{i}] {name}:")
+        print(_show_bytes(out))
+    return 0
+
+
+def cmd_encode(args) -> int:
+    print(_show_bytes(codec.encode(_input_bytes(args.text), args.chain.split(","))))
+    return 0
+
+
+def cmd_diff(args) -> int:
+    history = History(args.project)
+    a, b = history.get(args.a), history.get(args.b)
+    for fid, f in ((args.a, a), (args.b, b)):
+        if f is None:
+            print(f"no flow {fid}", file=sys.stderr)
+            return 1
+    print(f"A  #{a.id}  {a.request.method} {a.url}")
+    print(f"B  #{b.id}  {b.request.method} {b.url}")
+    if args.request:
+        ha, hb, ba, bb = a.request.headers, b.request.headers, a.request.body, b.request.body
+        if a.request.target != b.request.target or a.request.method != b.request.method:
+            print(f"~ request line: {a.request.method} {a.request.target}  ->  {b.request.method} {b.request.target}")
+    else:
+        if a.response is None or b.response is None:
+            print("one of the flows has no response", file=sys.stderr)
+            return 1
+        ha, hb = a.response.headers, b.response.headers
+        ba, bb = decode_content(a.response.body, ha), decode_content(b.response.body, hb)
+        print(f"status: {a.response.status} vs {b.response.status}   "
+              f"length: {len(ba)} vs {len(bb)}   time: {a.duration_ms}ms vs {b.duration_ms}ms")
+    changes = header_changes(ha, hb)
+    print("headers: " + ("identical (ignoring Date, ETag, Content-Length, Connection)" if not changes else "changed"))
+    for line in changes:
+        print("  " + line)
+    diff = body_diff(ba, bb, f"#{a.id}", f"#{b.id}", args.context)
+    print("body: " + ("identical" if not diff else "changed"))
+    for line in diff:
+        print(line)
+    return 0
+
+
+def _print_import(result: routes.ImportResult, origin: str, stored: int) -> None:
+    kinds = {}
+    for r in result.routes:
+        kinds[r.kind] = kinds.get(r.kind, 0) + 1
+    summary = ", ".join(f"{n} {k}" for k, n in sorted(kinds.items())) or "nothing"
+    print(f"imported {stored} routes from {origin}: {summary}")
+    if result.stats:
+        print(f"  REA parsed {result.stats.get('parsed_javascript_files', '?')} files, "
+              f"{result.stats.get('parse_failures', 0)} parse failures")
+    if result.skipped:
+        skipped = ", ".join(f"{m} x{n}" for m, n in result.skipped.most_common(4))
+        print(f"  skipped {sum(result.skipped.values())} endpoint observations that are not HTTP paths ({skipped})")
+    for w in result.warnings:
+        print(f"  warning: {w}", file=sys.stderr)
+    print("  next: proxyforge coverage -p PROJECT [--host HOST]")
+
+
+def _store_routes(args, result: routes.ImportResult) -> int:
+    store = routes.RouteStore(args.project)
+    # Keyed by full path, so two files that share a name don't replace each other.
+    origin = str(Path(args.file).resolve())
+    stored, deleted = store.replace(origin, result.routes)
+    store.close()
+    _print_import(result, Path(args.file).name, stored)
+    if deleted:
+        print(f"  replaced {deleted} routes imported earlier from this file")
+    return 0 if result.routes else 1
+
+
+def cmd_import_rea(args) -> int:
+    return _store_routes(args, routes.load_rea(args.file))
+
+
+def cmd_import_routes(args) -> int:
+    return _store_routes(args, routes.load_list(args.file))
+
+
+def cmd_routes(args) -> int:
+    store = routes.RouteStore(args.project)
+    items = store.all()
+    if args.kind:
+        items = [r for r in items if r.kind == args.kind]
+    if args.method:
+        items = [r for r in items if r.method == args.method.upper()]
+    if args.contains:
+        items = [r for r in items if args.contains in r.pattern]
+    for r in items:
+        print(f"{r.method:<7} {routes.printable(r.pattern):<50} {r.kind:<7} {routes.printable(r.where)}")
+    origins = ", ".join(f"{Path(o).name} ({n})" for o, n in store.origins()) or "none"
+    print(f"{len(items)} routes; imports: {origins}", file=sys.stderr)
+    return 0
+
+
+def cmd_coverage(args) -> int:
+    store = routes.RouteStore(args.project)
+    all_routes = store.all()
+    if not all_routes:
+        print("no routes imported yet: run `proxyforge import-rea FILE.json` or "
+              "`proxyforge import-routes routes.txt` first", file=sys.stderr)
+        return 1
+    kinds = tuple(k.strip() for k in args.kinds.split(",") if k.strip())
+    unknown = sorted(set(kinds) - {"server", "router", "client", "spa"})
+    if unknown or not kinds:
+        print(f"error: unknown route kind(s) {unknown}; choose from server, router, client, spa",
+              file=sys.stderr)
+        return 2
+    history = History(args.project)
+    # The history filter knows hosts (with wildcards), not ports; coverage() applies the port.
+    flows = history.query(host=routes.split_host(args.host)[0] if args.host else None)
+    report = routes.coverage(all_routes, flows, host=args.host, kinds=kinds)
+    if args.json:
+        print(json.dumps(report.to_dict(), indent=2))
+    else:
+        print(routes.format_report(report, show=args.show, examples=args.examples))
+        if report.flows_seen == 0:
+            print("\nno flows matched: is the history empty, or is --host different from what the "
+                  "proxy recorded? (see `proxyforge history`)", file=sys.stderr)
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -162,6 +408,9 @@ def build_parser() -> argparse.ArgumentParser:
                      help="don't verify upstream certificates (lab targets only)")
     run.add_argument("--record-out-of-scope", action="store_true",
                      help="decrypt and record traffic outside the scope too")
+    run.add_argument("--keep-accept-encoding", action="store_true",
+                     help="pass the browser's Accept-Encoding through unchanged (bodies may then "
+                          "be brotli/zstd, which show/diff can't decode without extra packages)")
     run.set_defaults(func=cmd_run)
 
     ca = sub.add_parser("ca", help="create (if needed) and print the CA certificate")
@@ -188,13 +437,91 @@ def build_parser() -> argparse.ArgumentParser:
     h.add_argument("output")
     h.set_defaults(func=cmd_har)
 
+    rp = sub.add_parser("repeat", help="edit a request and send it again (Repeater)")
+    project(rp)
+    rp.add_argument("id", type=int, nargs="?", help="flow id to start from")
+    rp.add_argument("--raw", help="send a raw request file instead of a flow")
+    rp.add_argument("--url", help="where to send it: scheme://host[:port][/path]")
+    rp.add_argument("-X", "--method")
+    rp.add_argument("--path", help="new path and query, e.g. /rest/basket/2")
+    rp.add_argument("-H", "--header", action="append",
+                    help="'Name: value' to set, 'Name:' to remove (repeatable)")
+    rp.add_argument("--body", help="new body text, or @file")
+    rp.add_argument("-e", "--edit", action="store_true", help="open the request in $EDITOR first")
+    rp.add_argument("-s", "--scope", help="scope file; the target must be in it")
+    rp.add_argument("--no-scope", action="store_true", help="I own this target; skip the scope check")
+    rp.add_argument("--insecure", action="store_true", help="don't verify the server's certificate")
+    rp.add_argument("--timeout", type=float, default=30)
+    rp.add_argument("--show-request", action="store_true")
+    rp.add_argument("--no-save", action="store_true", help="don't add the result to history")
+    rp.add_argument("--limit", type=int, default=4000, help="max body characters to print")
+    rp.set_defaults(func=cmd_repeat)
+
+    raw = sub.add_parser("raw", help="print a flow's request as editable text")
+    project(raw)
+    raw.add_argument("id", type=int)
+    raw.set_defaults(func=cmd_raw)
+
+    dec = sub.add_parser("decode", help="decode text; guesses the layers if -c is not given")
+    dec.add_argument("text", nargs="?", help="text to decode (default: read stdin)")
+    dec.add_argument("-c", "--chain", help="decoders to apply in order: " + ",".join(codec.DECODERS))
+    dec.set_defaults(func=cmd_decode)
+
+    enc = sub.add_parser("encode", help="encode text with one or more encoders")
+    enc.add_argument("text", nargs="?", help="text to encode (default: read stdin)")
+    enc.add_argument("-c", "--chain", required=True, help="encoders in order: " + ",".join(codec.ENCODERS))
+    enc.set_defaults(func=cmd_encode)
+
+    df = sub.add_parser("diff", help="compare two flows (Comparer)")
+    project(df)
+    df.add_argument("a", type=int)
+    df.add_argument("b", type=int)
+    df.add_argument("--request", action="store_true", help="compare requests instead of responses")
+    df.add_argument("--context", type=int, default=3, help="lines of context around changes")
+    df.set_defaults(func=cmd_diff)
+
     sc = sub.add_parser("scope", help="check URLs against a scope file")
     sc.add_argument("-s", "--scope", required=True)
     sc.add_argument("urls", nargs="+")
     sc.set_defaults(func=cmd_scope)
+
+    ir = sub.add_parser("import-rea", help="import routes from REA analyze-javascript-application JSON")
+    project(ir)
+    ir.add_argument("file", help="output of: rea analyze-javascript-application DIR --format json")
+    ir.set_defaults(func=cmd_import_rea)
+
+    il = sub.add_parser("import-routes", help="import routes from a text file ('METHOD /path' per line)")
+    project(il)
+    il.add_argument("file")
+    il.set_defaults(func=cmd_import_routes)
+
+    rt = sub.add_parser("routes", help="list imported routes")
+    project(rt)
+    rt.add_argument("--kind", choices=["server", "router", "client", "spa"])
+    rt.add_argument("--method")
+    rt.add_argument("--contains", help="text that must appear in the pattern")
+    rt.set_defaults(func=cmd_routes)
+
+    cv = sub.add_parser("coverage", help="compare imported routes with the history: untested, tested, unmapped")
+    project(cv)
+    cv.add_argument("--host", help="only count flows to this host[:port], e.g. 127.0.0.1:3000")
+    cv.add_argument("--show", choices=["all", "untested", "tested", "unmapped"], default="all")
+    cv.add_argument("--kinds", default="server,router",
+                    help="route kinds that count as testable (default: server,router)")
+    cv.add_argument("--examples", type=int, default=5, help="flow ids to list per route")
+    cv.add_argument("--json", action="store_true", help="machine-readable report")
+    cv.set_defaults(func=cmd_coverage)
     return p
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except BrokenPipeError:
+        # Output piped into `head` etc. was closed early; that's not an error.
+        sys.stderr.close()
+        return 0
+    except (ValueError, HttpError, OSError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2

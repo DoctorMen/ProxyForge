@@ -168,3 +168,36 @@ def test_leaf_cert_names_host_and_chains_to_ca(tmp_path, host, san_type):
     assert [str(v) for v in san.get_values_for_type(san_type)] == [host]
     leaf.verify_directly_issued_by(ca.cert)
     assert isinstance(ca.server_context(host), ssl.SSLContext)
+
+
+def test_narrow_accept_encoding():
+    from proxyforge.proxy import narrow_accept_encoding
+    assert narrow_accept_encoding("gzip, deflate, br, zstd") == "gzip, deflate"
+    assert narrow_accept_encoding("br") == "identity"
+    assert narrow_accept_encoding("gzip;q=0.5, br;q=1.0") == "gzip;q=0.5"
+    assert narrow_accept_encoding("*") == "identity"
+    assert narrow_accept_encoding("identity") == "identity"
+
+
+def test_har_clean_url():
+    from proxyforge.har import clean_url
+    assert clean_url("http://h:3000/a b/[x]?q=1&r=[2]") == "http://h:3000/a%20b/%5Bx%5D?q=1&r=%5B2%5D"
+    assert clean_url("http://h/%E1%93%9A-#x") == "http://h/%E1%93%9A-%23x"   # already-encoded bytes stay
+    assert clean_url("https://h/plain/path?a=b&c=d") == "https://h/plain/path?a=b&c=d"
+    assert clean_url("http://h") == "http://h"
+    # Raw UTF-8 bytes on the wire are stored latin-1; they come out as the bytes sent.
+    assert clean_url("http://h/caf" + "é".encode("utf-8").decode("latin-1")) == "http://h/caf%C3%A9"
+    assert clean_url("http://h/a%?q=50%") == "http://h/a%25?q=50%25"   # a lone % is not an escape
+
+
+def test_decode_content_is_capped_and_reads_every_gzip_member(monkeypatch):
+    import gzip
+    import zlib
+    from proxyforge import http
+    from proxyforge.http import Headers, decode_content_info
+    bomb = zlib.compress(b"\0" * 5_000_000, 9)   # 5 MB of zeros in ~5 KB
+    monkeypatch.setattr(http, "DECODE_LIMIT", 100_000)
+    out, cut = decode_content_info(bomb, Headers([("Content-Encoding", "deflate")]))
+    assert cut and len(out) == 100_000
+    two = gzip.compress(b"first,") + gzip.compress(b"second")
+    assert decode_content_info(two, Headers([("Content-Encoding", "gzip")])) == (b"first,second", False)

@@ -204,3 +204,62 @@ def test_har_export_and_cli(make_proxy, http_app, https_app, tmp_path, capsys):
     assert main(["show", "-p", proxy.db_path, "1"]) == 0
     shown = capsys.readouterr().out
     assert shown.startswith("GET /hello HTTP/1.1") and "hello world" in shown
+
+
+def test_browser_accept_encoding_is_narrowed_to_what_we_can_decode(make_proxy, http_app):
+    proxy = make_proxy()
+    _, body = via_proxy(proxy, "GET", f"http://127.0.0.1:{http_app}/headers",
+                        headers={"Accept-Encoding": "gzip, deflate, br, zstd"})
+    assert "accept-encoding: gzip, deflate\n" in body.decode().lower()
+    # Only codings the client offered are kept; "br" alone becomes identity.
+    _, body = via_proxy(proxy, "GET", f"http://127.0.0.1:{http_app}/headers",
+                        headers={"Accept-Encoding": "br;q=1.0, zstd"})
+    assert "accept-encoding: identity\n" in body.decode().lower()
+    _, body = via_proxy(proxy, "GET", f"http://127.0.0.1:{http_app}/headers",
+                        headers={"Accept-Encoding": "identity"})
+    assert "accept-encoding: identity\n" in body.decode().lower()
+
+
+def test_keep_accept_encoding_passes_it_through(make_proxy, http_app):
+    proxy = make_proxy(readable_bodies=False)
+    _, body = via_proxy(proxy, "GET", f"http://127.0.0.1:{http_app}/headers",
+                        headers={"Accept-Encoding": "br"})
+    assert "accept-encoding: br\n" in body.decode().lower()
+
+
+def test_short_body_is_kept_and_noted_not_turned_into_502(make_proxy, http_app):
+    proxy = make_proxy()
+    resp, body = via_proxy(proxy, "GET", f"http://127.0.0.1:{http_app}/short")
+    assert (resp.status, body) == (200, b"only twelve!")
+    assert resp.getheader("Content-Length") == "12"
+    [flow] = proxy.history.query()
+    assert flow.response.body == b"only twelve!"
+    assert flow.note == "server closed the connection after 12 of 20 promised body bytes"
+
+
+def test_har_urls_are_valid_rfc3986(make_proxy, http_app, tmp_path):
+    proxy = make_proxy()
+    # Browsers send [ and ] raw; HAR validators (REA's included) want RFC 3986.
+    via_proxy(proxy, "GET", f"http://127.0.0.1:{http_app}/files/[1]%20x/a?q=[2]")
+    out = tmp_path / "out.har"
+    assert main(["har", "-p", proxy.db_path, str(out)]) == 0
+    [entry] = json.loads(out.read_text())["log"]["entries"]
+    assert entry["request"]["url"] == f"http://127.0.0.1:{http_app}/files/%5B1%5D%20x/a?q=%5B2%5D"
+
+
+def test_short_chunked_body_keeps_the_partial_chunk(make_proxy, cut_chunk_app):
+    proxy = make_proxy()
+    resp, body = via_proxy(proxy, "GET", f"http://127.0.0.1:{cut_chunk_app}/")
+    assert (resp.status, body) == (200, b"helloonly twelve!")
+    [flow] = proxy.history.query()
+    assert flow.note == "server closed the connection after 17 of an unknown number of chunked body bytes"
+
+
+def test_client_that_hangs_up_mid_upload_gets_no_400(make_proxy, http_app):
+    proxy = make_proxy()
+    with socket.create_connection(("127.0.0.1", proxy.port), timeout=5) as sock:
+        sock.sendall(f"POST http://127.0.0.1:{http_app}/echo HTTP/1.1\r\nHost: x\r\n"
+                     f"Content-Length: 100\r\n\r\nhalf".encode())
+        sock.shutdown(socket.SHUT_WR)
+        assert sock.recv(1024) == b""  # the proxy just closes; no "400" blaming the server
+    assert proxy.history.count() == 0
