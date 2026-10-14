@@ -170,3 +170,11 @@ def test_decode_cli(capsys):
     assert main(["encode", "a b&c", "-c", "url,base64"]) == 0
     assert capsys.readouterr().out.strip() == "YSUyMGIlMjZj"
     assert main(["decode", "plain words"]) == 1
+
+
+def test_repeater_keeps_a_short_body(http_app):
+    import asyncio
+    from proxyforge.client import send
+    flow = asyncio.run(send("http", "127.0.0.1", http_app, Request("GET", "/short")))
+    assert flow.response.body == b"only twelve!"
+    assert "12 of 20 promised" in flow.note

@@ -1,0 +1,2398 @@
+{
+ "evidence_id": "ev_bcbfb8c231abdb92cb95a337d3353d14dcf3421fe87ae3f1068cb6d3cc561ebb",
+ "subject": {
+  "name": "juice-server",
+  "digest": {
+   "sha256": "71a5285efd92682a3c82f6880351f90a1b3dfd0d6a0c5fad9076c4f6dea7db4e"
+  },
+  "format": "directory",
+  "architecture": null,
+  "local_path": "/tmp/claude-0/jsrc/juice-server"
+ },
+ "provider": {
+  "id": "rea-javascript-application",
+  "name": "REA JavaScript application analyzer",
+  "version": "1"
+ },
+ "predicate_type": "rea.javascript-application-analysis",
+ "operation": "analyze_javascript_application",
+ "parameters": {
+  "format": "auto",
+  "integrity_policy": "fail"
+ },
+ "normalized_result": {
+  "input_path": "/tmp/claude-0/jsrc/juice-server",
+  "format": "directory",
+  "graph": {
+   "schema": "JavaScriptApplicationGraph",
+   "nodes": [
+    {
+     "node_id": "jag_node_048ccacf3a02793e97173bbac16b837e6e2c4022de2dd6a1b791a07a29bea8c3",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+      "namespace": "network",
+      "key": "/rest/user/login"
+     },
+     "observations": [
+      {
+       "label": "/rest/user/login",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "/rest/user/login",
+        "mechanism": "call:app.post"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+         "sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "server.ts",
+          "start": {
+           "line": 624,
+           "column": 2
+          },
+          "end": {
+           "line": 624,
+           "column": 39
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_23ee2a1bef3edefac3197f17c355501d7e721359096e3a69ad56c5d688494935",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_173b65d45b2accfe48adb95d1be0d9c6deba10544f0aebb1e6519eae5a093471",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "b00e6a62b4f97338ea263bba9efafe7158d6d23829d468186c00c9078eeffd8f",
+      "namespace": "network",
+      "key": "application.name"
+     },
+     "observations": [
+      {
+       "label": "application.name",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "application.name",
+        "mechanism": "call:config.get"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_b00e6a62b4f97338ea263bba9efafe7158d6d23829d468186c00c9078eeffd8f",
+         "sha256": "b00e6a62b4f97338ea263bba9efafe7158d6d23829d468186c00c9078eeffd8f"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "routes/metrics.ts",
+          "start": {
+           "line": 103,
+           "column": 32
+          },
+          "end": {
+           "line": 103,
+           "column": 70
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_71c1ea92d48886e849cdb02209f82eea080e1a188a7ed6f7caaffe0edd9dd878",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      },
+      {
+       "label": "application.name",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "application.name",
+        "mechanism": "call:config.get"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_b00e6a62b4f97338ea263bba9efafe7158d6d23829d468186c00c9078eeffd8f",
+         "sha256": "b00e6a62b4f97338ea263bba9efafe7158d6d23829d468186c00c9078eeffd8f"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "routes/metrics.ts",
+          "start": {
+           "line": 138,
+           "column": 40
+          },
+          "end": {
+           "line": 138,
+           "column": 78
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_ff89d74ed11c1f7f961189f92863e563907e5e83b8185a81900c5cae2f96bdaf",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_1b0e5ff10d1532defbd60453967f98244de38c76ba38c622848389ce025e59b8",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+      "namespace": "network",
+      "key": "/rest/user/whoami"
+     },
+     "observations": [
+      {
+       "label": "network endpoint",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "/rest/user/whoami",
+        "mechanism": "call:app.get"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+         "sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "server.ts",
+          "start": {
+           "line": 628,
+           "column": 2
+          },
+          "end": {
+           "line": 628,
+           "column": 74
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_6e51dd556c39689e706f24c36a3c997ede8b42a46ec8aaf6fd79cdf63899fdf2",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_24c68bdad10a6977c84c5f0ab200d85cbfb541257a755e545daf0863fa5652cc",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+      "namespace": "network",
+      "key": "/api/Users"
+     },
+     "observations": [
+      {
+       "label": "/api/Users",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "/api/Users",
+        "mechanism": "call:app.post"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+         "sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "server.ts",
+          "start": {
+           "line": 436,
+           "column": 2
+          },
+          "end": {
+           "line": 447,
+           "column": 4
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_06e4c31e2164216a175f4ba0847902713628433c4a7d6f7aa117af86726ad1f6",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      },
+      {
+       "label": "/api/Users",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "/api/Users",
+        "mechanism": "call:app.post"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+         "sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "server.ts",
+          "start": {
+           "line": 450,
+           "column": 2
+          },
+          "end": {
+           "line": 450,
+           "column": 56
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_17e4ad889eb3bfd88577c782d3dc995d3ec21d4b4a1aa527a6131fef29be3493",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      },
+      {
+       "label": "/api/Users",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "/api/Users",
+        "mechanism": "call:app.post"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+         "sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "server.ts",
+          "start": {
+           "line": 448,
+           "column": 2
+          },
+          "end": {
+           "line": 448,
+           "column": 57
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_1ae2dd0f2a6ce80d387368adfec1b9d4172c1bb4be947059ae93277150fcd3cd",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      },
+      {
+       "label": "/api/Users",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "/api/Users",
+        "mechanism": "call:app.post"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+         "sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "server.ts",
+          "start": {
+           "line": 449,
+           "column": 2
+          },
+          "end": {
+           "line": 449,
+           "column": 58
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_aa3b49e998c844cb21d82bf4e6264e51226b653e729a2ede67ba3ea167a8bdbf",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      },
+      {
+       "label": "/api/Users",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "/api/Users",
+        "mechanism": "call:app.get"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+         "sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "server.ts",
+          "start": {
+           "line": 391,
+           "column": 2
+          },
+          "end": {
+           "line": 391,
+           "column": 48
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_c1087d267bcfc68f8dc256c872ee5cc0ef3ea2ccc991d5fc2c1a22224102ffdb",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_2dfa7151dcd93fc1b528c218d263516cd388a61e3ae4e9c2ace5a7334368d4ad",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "11231aefa83ceec4b0c6903ecd4fb9ccddc24b49044961fcac017e3cf7c631ba",
+      "namespace": "network",
+      "key": "application.name"
+     },
+     "observations": [
+      {
+       "label": "application.name",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "application.name",
+        "mechanism": "call:config.get"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_11231aefa83ceec4b0c6903ecd4fb9ccddc24b49044961fcac017e3cf7c631ba",
+         "sha256": "11231aefa83ceec4b0c6903ecd4fb9ccddc24b49044961fcac017e3cf7c631ba"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "routes/dataErasure.ts",
+          "start": {
+           "line": 53,
+           "column": 33
+          },
+          "end": {
+           "line": 53,
+           "column": 71
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_2471768151768ff304d7cc39bdbc3283f2e390131b28c6fa402a74d47470cca3",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      },
+      {
+       "label": "application.name",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "application.name",
+        "mechanism": "call:config.get"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_11231aefa83ceec4b0c6903ecd4fb9ccddc24b49044961fcac017e3cf7c631ba",
+         "sha256": "11231aefa83ceec4b0c6903ecd4fb9ccddc24b49044961fcac017e3cf7c631ba"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "routes/dataErasure.ts",
+          "start": {
+           "line": 93,
+           "column": 33
+          },
+          "end": {
+           "line": 93,
+           "column": 71
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_3c793bc097f8ebf0c6551799a786b0ef6f2173cca204a9bb671ff40507e188e8",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_300c4d57617a15f930eba6fbb9d97eaf7343788b51f61c7392d04f6259b8e5bc",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+      "namespace": "network",
+      "key": "/metrics"
+     },
+     "observations": [
+      {
+       "label": "/metrics",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "/metrics",
+        "mechanism": "call:app.get"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+         "sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "server.ts",
+          "start": {
+           "line": 759,
+           "column": 0
+          },
+          "end": {
+           "line": 759,
+           "column": 63
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_49b90fd171ea9355e755a4166e6b93192c5cc22a2f13a9cac36fd591a41fb5cc",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      },
+      {
+       "label": "/metrics",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "/metrics",
+        "mechanism": "call:app.get"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+         "sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "server.ts",
+          "start": {
+           "line": 704,
+           "column": 2
+          },
+          "end": {
+           "line": 704,
+           "column": 65
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_c0acc5d52e95ecf6862e4fca27ee73ed94c1b8b8e2dc4b943f3f8fcb2c800d69",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_321cc0cf302931402bb1cf7fbc5669c03df7a568b932d4e67a4a829f38ba41c6",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+      "namespace": "network",
+      "key": "/rest/products/search"
+     },
+     "observations": [
+      {
+       "label": "network endpoint",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "/rest/products/search",
+        "mechanism": "call:app.get"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+         "sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "server.ts",
+          "start": {
+           "line": 630,
+           "column": 2
+          },
+          "end": {
+           "line": 630,
+           "column": 72
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_5e790da634f59aa664e2f59bccef28cdf9af1016751ec4707efbc09b6c8a1c28",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_437c4dfd181670628902a89fd4cdd36f932f312ebb3aa8e6324f3549df901658",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+      "namespace": "network",
+      "key": "/rest/basket/:id/coupon/:coupon"
+     },
+     "observations": [
+      {
+       "label": "network endpoint",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "/rest/basket/:id/coupon/:coupon",
+        "mechanism": "call:app.put"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+         "sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "server.ts",
+          "start": {
+           "line": 633,
+           "column": 2
+          },
+          "end": {
+           "line": 633,
+           "column": 79
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_3d4ec41f30184a26b782902e5a9f6be96d48bce8aa8ca457939540012289b132",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_48532379e2a326092156d746c718175cf45e408d3784269334d931b6294226df",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+      "namespace": "network",
+      "key": "/api/Addresss/:id"
+     },
+     "observations": [
+      {
+       "label": "network endpoint",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "/api/Addresss/:id",
+        "mechanism": "call:app.delete"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+         "sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "server.ts",
+          "start": {
+           "line": 479,
+           "column": 2
+          },
+          "end": {
+           "line": 479,
+           "column": 104
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_5898846aa999763a160725e0a306ad7b9e468e9b6733995057c14388d566be4c",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_4e9c15f18a72c39e6906acf9d0b00d9f7ffe930d9a47b1e46769ebdf3f173083",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+      "namespace": "network",
+      "key": "/rest/admin/application-version"
+     },
+     "observations": [
+      {
+       "label": "network endpoint",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "/rest/admin/application-version",
+        "mechanism": "call:app.get"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+         "sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "server.ts",
+          "start": {
+           "line": 634,
+           "column": 2
+          },
+          "end": {
+           "line": 634,
+           "column": 86
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_0397dc4bc5659867e128490a995ddaeefdd49c29b27340e043853a7c8a6e95b2",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_588e2ece83482aeec2b77ee4fb32432a2132d583685526648050dba1b412c34e",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+      "namespace": "network",
+      "key": "/rest/basket/:id"
+     },
+     "observations": [
+      {
+       "label": "/rest/basket/:id",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "/rest/basket/:id",
+        "mechanism": "call:app.get"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+         "sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "server.ts",
+          "start": {
+           "line": 631,
+           "column": 2
+          },
+          "end": {
+           "line": 631,
+           "column": 67
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_847a6a2df8a9ccb52c2957390d0c7a67f88d7072bddcbe7af4d5768dbd8c33f2",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_5a9fa967c6827372ebf709c5d7dce7c8276bb192ead58370c32a04a6565f7973",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "11231aefa83ceec4b0c6903ecd4fb9ccddc24b49044961fcac017e3cf7c631ba",
+      "namespace": "network",
+      "key": "/"
+     },
+     "observations": [
+      {
+       "label": "/",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "/",
+        "mechanism": "call:router.get"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_11231aefa83ceec4b0c6903ecd4fb9ccddc24b49044961fcac017e3cf7c631ba",
+         "sha256": "11231aefa83ceec4b0c6903ecd4fb9ccddc24b49044961fcac017e3cf7c631ba"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "routes/dataErasure.ts",
+          "start": {
+           "line": 24,
+           "column": 0
+          },
+          "end": {
+           "line": 66,
+           "column": 2
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_4469d5eb3882799b5383f33fdd35410040949d52987944c33a4af6b59dfd1829",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      },
+      {
+       "label": "/",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "/",
+        "mechanism": "call:router.post"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_11231aefa83ceec4b0c6903ecd4fb9ccddc24b49044961fcac017e3cf7c631ba",
+         "sha256": "11231aefa83ceec4b0c6903ecd4fb9ccddc24b49044961fcac017e3cf7c631ba"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "routes/dataErasure.ts",
+          "start": {
+           "line": 74,
+           "column": 0
+          },
+          "end": {
+           "line": 132,
+           "column": 2
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_7630d9fdb4f4b804945727871284e33d2c97692a3da86c4b5ac0ba23fb7d1022",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_5ad50af7dc51a51b82b549fcb4736159b90c1d27a4564c05257840e368eda8ad",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+      "namespace": "network",
+      "key": "/file-upload"
+     },
+     "observations": [
+      {
+       "label": "/file-upload",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "/file-upload",
+        "mechanism": "call:app.post"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+         "sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "server.ts",
+          "start": {
+           "line": 337,
+           "column": 2
+          },
+          "end": {
+           "line": 337,
+           "column": 211
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_d98f6d2cb1302e4ddd33b18cfd362a760ac6e906dfb767f7a38edbdfb26650c0",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_634bd7da3058443b70ff3eff039311913f8ac04ead0efdcd5c9e75244a2fb4f2",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+      "namespace": "network",
+      "key": "/rest/basket/:id/checkout"
+     },
+     "observations": [
+      {
+       "label": "network endpoint",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "/rest/basket/:id/checkout",
+        "mechanism": "call:app.post"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+         "sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "server.ts",
+          "start": {
+           "line": 632,
+           "column": 2
+          },
+          "end": {
+           "line": 632,
+           "column": 53
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_02bcb33981926e403484f9a9fc57861a3c70c47169bf1346c95ffb4904b59536",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_9c86e78030adbd2d087f0d9b140cda74392538e66bd39f8010321f4c0241d4ab",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "747a80d5fcd79d88f906ad396adb00c1c68a376fd47a6c80628ca91c70e02300",
+      "namespace": "network",
+      "key": "application.name"
+     },
+     "observations": [
+      {
+       "label": "application.name",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "application.name",
+        "mechanism": "call:config.get"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_747a80d5fcd79d88f906ad396adb00c1c68a376fd47a6c80628ca91c70e02300",
+         "sha256": "747a80d5fcd79d88f906ad396adb00c1c68a376fd47a6c80628ca91c70e02300"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "routes/order.ts",
+          "start": {
+           "line": 59,
+           "column": 52
+          },
+          "end": {
+           "line": 59,
+           "column": 90
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_2c1f8f2e9fc5a508e0302351da3839dfbb4e3652cdda98e9c2425dfc77f7b2c8",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_b6aae3497dff1464505e4b27535d127e3b309d6be584143a833ba5ca5d41b605",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+      "namespace": "route",
+      "key": "/api/Users/:id"
+     },
+     "observations": [
+      {
+       "label": "/api/Users/:id",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "route",
+        "value": "/api/Users/:id",
+        "mechanism": "call:app.route"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+         "sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "server.ts",
+          "start": {
+           "line": 392,
+           "column": 2
+          },
+          "end": {
+           "line": 392,
+           "column": 29
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_9a01df4937e2ec0fb3b6a3890f99302110fb1fb50a01842256e200d83fcefd90",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_b99041ebf5d552b4fd771b9d94d46bb4b58be1c07323d24cdf45783f55c46b41",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "5c3bdfb5e0662bf1da44f63ae4f3d62ac857d9579b8b11e937bab4b7229ec552",
+      "namespace": "network",
+      "key": "application.name"
+     },
+     "observations": [
+      {
+       "label": "application.name",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "application.name",
+        "mechanism": "call:config.get"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_5c3bdfb5e0662bf1da44f63ae4f3d62ac857d9579b8b11e937bab4b7229ec552",
+         "sha256": "5c3bdfb5e0662bf1da44f63ae4f3d62ac857d9579b8b11e937bab4b7229ec552"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "routes/videoHandler.ts",
+          "start": {
+           "line": 61,
+           "column": 62
+          },
+          "end": {
+           "line": 61,
+           "column": 100
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_af60cd4b1efe686a6d1cf72b626afa4502a7fde76b27c28160943ebe254401d7",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_c42fcad81e246609cbe356d92b2879d4a98f99400581a2120f1e8e6127252702",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "d4e711f5eb0b072feb7f31ab73870ab18f25b689c0c0d469921e37ac19d24fee",
+      "namespace": "network",
+      "key": "application.name"
+     },
+     "observations": [
+      {
+       "label": "application.name",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "application.name",
+        "mechanism": "call:config.get"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_d4e711f5eb0b072feb7f31ab73870ab18f25b689c0c0d469921e37ac19d24fee",
+         "sha256": "d4e711f5eb0b072feb7f31ab73870ab18f25b689c0c0d469921e37ac19d24fee"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "routes/chat.ts",
+          "start": {
+           "line": 40,
+           "column": 16
+          },
+          "end": {
+           "line": 40,
+           "column": 54
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_9f1e31d8871417404726c421f304575a08ecc377169fc701eb2ea49b9ec1b9a6",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_c52c2a770d67edd1aad07a2b3db328cc4c004debbf4ac6f9d4595b78c608ec48",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "eec989ea6e99d21e4387725ccd11a34eaecae36ad40eba7fdfbaf986f367a2ee",
+      "namespace": "network",
+      "key": "host"
+     },
+     "observations": [
+      {
+       "label": "host",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "host",
+        "mechanism": "call:req.get"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_eec989ea6e99d21e4387725ccd11a34eaecae36ad40eba7fdfbaf986f367a2ee",
+         "sha256": "eec989ea6e99d21e4387725ccd11a34eaecae36ad40eba7fdfbaf986f367a2ee"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "routes/dataExport.ts",
+          "start": {
+           "line": 73,
+           "column": 45
+          },
+          "end": {
+           "line": 73,
+           "column": 60
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_4d969d7174257bcfcfe8605c6adc51925293a766b0c399c61582b408a37882c6",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_e6d1f4a8920cdaed298309c072478e21d887de6f0c24b792e19e1e203073eb77",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "17a045c16dbc3e7bf61321e2843a77b65673b8e51e38b9209e1cee99d58647bf",
+      "namespace": "network",
+      "key": "application.name"
+     },
+     "observations": [
+      {
+       "label": "application.name",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "application.name",
+        "mechanism": "call:config.get"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_17a045c16dbc3e7bf61321e2843a77b65673b8e51e38b9209e1cee99d58647bf",
+         "sha256": "17a045c16dbc3e7bf61321e2843a77b65673b8e51e38b9209e1cee99d58647bf"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "lib/webhook.ts",
+          "start": {
+           "line": 34,
+           "column": 17
+          },
+          "end": {
+           "line": 34,
+           "column": 55
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_270527d6e6410337ae7da5834bb7d8bf9d5e552beb1e519727cdc3dbbd690479",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_edd5814ca6ed0ad0e0f0b90962040fa101281290455d31b197bdd20d59b3f61e",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "6b3b6b405fbe30e736cdfc6453d30b6d9ef6b9905dc7c26add3e1aa081fda064",
+      "namespace": "network",
+      "key": "application.name"
+     },
+     "observations": [
+      {
+       "label": "application.name",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "application.name",
+        "mechanism": "call:config.get"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_6b3b6b405fbe30e736cdfc6453d30b6d9ef6b9905dc7c26add3e1aa081fda064",
+         "sha256": "6b3b6b405fbe30e736cdfc6453d30b6d9ef6b9905dc7c26add3e1aa081fda064"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "lib/startup/customizeApplication.ts",
+          "start": {
+           "line": 13,
+           "column": 6
+          },
+          "end": {
+           "line": 13,
+           "column": 44
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_8d950416233cedac42256db8fbdfe190dfeac89ccbd76e94e57af4f184c1d823",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      },
+      {
+       "label": "application.name",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "application.name",
+        "mechanism": "call:config.get"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_6b3b6b405fbe30e736cdfc6453d30b6d9ef6b9905dc7c26add3e1aa081fda064",
+         "sha256": "6b3b6b405fbe30e736cdfc6453d30b6d9ef6b9905dc7c26add3e1aa081fda064"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "lib/startup/customizeApplication.ts",
+          "start": {
+           "line": 98,
+           "column": 26
+          },
+          "end": {
+           "line": 98,
+           "column": 64
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_a4375aac822e88f03118ef342620d08ea23dd3b2e033678d85c9541f258731b8",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_ee1698b3aa00b407a0d1da2b9c425614a910619bb07407f43089a9e86a20c354",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+      "namespace": "network",
+      "key": "/rest/products/reviews"
+     },
+     "observations": [
+      {
+       "label": "network endpoint",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "/rest/products/reviews",
+        "mechanism": "call:app.patch"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+         "sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "server.ts",
+          "start": {
+           "line": 662,
+           "column": 2
+          },
+          "end": {
+           "line": 662,
+           "column": 86
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_42204d385608825f3b895fdea5bb7fe96d3a1284cbbdecb5786ad0d6c7e83153",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_f1f392e62ac322043d46a014f04b094a813341534d767bf798d763567abaa84f",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+      "namespace": "network",
+      "key": "application.name"
+     },
+     "observations": [
+      {
+       "label": "application.name",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "application.name",
+        "mechanism": "call:config.get"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1",
+         "sha256": "1aef4d60cbdfb3458a25610d017a678ab4d69fc835bb8b592db9a13aceb20cb1"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "server.ts",
+          "start": {
+           "line": 760,
+           "column": 24
+          },
+          "end": {
+           "line": 760,
+           "column": 62
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_2b6d8ae930d81b5faba4c96dd74ab3729173295b8d325fae5265137b584eade4",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_f543866fbfd068098a8803d4f41b044f0ba571db5811fe82a5f080c20385a511",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "3c541208bc4500ec74653ceb85ab660eaa2d9b5fb4a335ef50c88e5856550669",
+      "namespace": "network",
+      "key": "application.name"
+     },
+     "observations": [
+      {
+       "label": "application.name",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "application.name",
+        "mechanism": "call:config.get"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_3c541208bc4500ec74653ceb85ab660eaa2d9b5fb4a335ef50c88e5856550669",
+         "sha256": "3c541208bc4500ec74653ceb85ab660eaa2d9b5fb4a335ef50c88e5856550669"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "lib/terraformCustomization.ts",
+          "start": {
+           "line": 13,
+           "column": 18
+          },
+          "end": {
+           "line": 13,
+           "column": 56
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_42f303570290c33d6339f6b058eadabfbf3a3ef2ef4ea68ec5998b75b04dee5d",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_f8b913a64a0fa6c6e3cfd09b66794c54e05afc3529ccbdeaff188dbf93a91487",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "07251f3d0dd9f4c530da60e3911091d8ff1bded650f72c31cbee499093979b39",
+      "namespace": "network",
+      "key": "application.name"
+     },
+     "observations": [
+      {
+       "label": "application.name",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "application.name",
+        "mechanism": "call:config.get"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_07251f3d0dd9f4c530da60e3911091d8ff1bded650f72c31cbee499093979b39",
+         "sha256": "07251f3d0dd9f4c530da60e3911091d8ff1bded650f72c31cbee499093979b39"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "routes/userProfile.ts",
+          "start": {
+           "line": 79,
+           "column": 60
+          },
+          "end": {
+           "line": 79,
+           "column": 98
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_496f97bcfd118937b8eb8b55607c81dd360d0f4a56bd41c9ba23a4b85a2b7368",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_00789c081b67664d5e60e3cd778cd1b22df2d59be8a5028e86db4b68d069e81f",
+     "kind": "javascript-module",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "5085488fa79c326d6c4c6d193e91bd759213c861142000006a579f9ebb6872c4",
+      "namespace": "module-export",
+      "key": "[\"71a5285efd92682a3c82f6880351f90a1b3dfd0d6a0c5fad9076c4f6dea7db4e\",\"lib/codingChallenges.ts\",\"SNIPPET_PATHS\"]"
+     },
+     "observations": [
+      {
+       "label": "lib/codingChallenges.ts:SNIPPET_PATHS",
+       "source_map_reference": null,
+       "properties": {
+        "semantic_role": "export-binding",
+        "module_path": "lib/codingChallenges.ts",
+        "relationship_kind": "export",
+        "exported_name": "SNIPPET_PATHS",
+        "local_name": "SNIPPET_PATHS",
+        "imported_name": null,
+        "declared_specifier": null
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_5085488fa79c326d6c4c6d193e91bd759213c861142000006a579f9ebb6872c4",
+         "sha256": "5085488fa79c326d6c4c6d193e91bd759213c861142000006a579f9ebb6872c4"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "lib/codingChallenges.ts",
+          "start": {
+           "line": 6,
+           "column": 7
+          },
+          "end": {
+           "line": 6,
+           "column": 175
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "recover-module-export",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [
+         "Cross-function mutation and dynamic property resolution remain unknown.",
+         "Local call, argument, return, and closure relations are static candidates and do not prove runtime invocation.",
+         "Promise ownership covers explicit unshadowed Promise construction, static factories, aggregation, chaining, and await syntax only.",
+         "Return sites include only direct callable returns; nested callable returns remain separate.",
+         "Values and aliases were recovered from inert syntax only; no JavaScript was executed."
+        ],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_5dbe8dafbf2c4853aba2a95d92c04415d6f8c08c005a0db30c7602903b265abd",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_00cab61ee5edfc2b5bed114a4faa800816b6027f33e2e1d27a46f79b5ff09bbd",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "c5195c9df5dd25488f397be57fb924e6b3f6c34b7cf244296a04b74dfe51278d",
+      "namespace": "route",
+      "key": "**"
+     },
+     "observations": [
+      {
+       "label": "**",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "route",
+        "value": "**",
+        "mechanism": "property:path"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_c5195c9df5dd25488f397be57fb924e6b3f6c34b7cf244296a04b74dfe51278d",
+         "sha256": "c5195c9df5dd25488f397be57fb924e6b3f6c34b7cf244296a04b74dfe51278d"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "data/static/codefixes/scoreBoardChallenge_3.ts",
+          "start": {
+           "line": 192,
+           "column": 4
+          },
+          "end": {
+           "line": 192,
+           "column": 14
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_3213d757ca5311166797a4fb809b29d3e05c7a051187ac8c4661cef771fe1090",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    },
+    {
+     "node_id": "jag_node_c6452328ba39afa776cca11ec8d34ca3732381ee09c82339c96dbe2ef05b421b",
+     "kind": "endpoint",
+     "identity": {
+      "strategy": "artifact-local-key",
+      "stability": "artifact-version",
+      "artifact_sha256": "26258c9ae37bf2a0ba11e59c9e7725a9c68127c79f4bc1c858e1cb93e7ae43f5",
+      "namespace": "network",
+      "key": "/api/Challenges/"
+     },
+     "observations": [
+      {
+       "label": "/api/Challenges/",
+       "source_map_reference": null,
+       "properties": {
+        "endpoint_kind": "network",
+        "value": "/api/Challenges/",
+        "mechanism": "call:fetch"
+       },
+       "evidence": {
+        "authority": "ast-static-analysis",
+        "state": "observed",
+        "confidence": "exact",
+        "artifact": {
+         "available": true,
+         "artifact_id": "art_26258c9ae37bf2a0ba11e59c9e7725a9c68127c79f4bc1c858e1cb93e7ae43f5",
+         "sha256": "26258c9ae37bf2a0ba11e59c9e7725a9c68127c79f4bc1c858e1cb93e7ae43f5"
+        },
+        "location": {
+         "available": true,
+         "value": {
+          "kind": "source-range",
+          "source": "hacking-instructor-Dj9tjwgl.js",
+          "start": {
+           "line": 1,
+           "column": 1914
+          },
+          "end": {
+           "line": 1,
+           "column": 1939
+          }
+         }
+        },
+        "extractor": {
+         "name": "rea-javascript-artifact-reconstruction",
+         "version": "1",
+         "operation": "discover-static-endpoint",
+         "executable_sha256": null
+        },
+        "coverage": {
+         "status": "complete",
+         "truncated": false,
+         "omitted_count": 0,
+         "limits": []
+        },
+        "limitations": [],
+        "evidence_ids": []
+       },
+       "observation_id": "jag_observation_dca8fd3074ee26c818d2bbf58dd325b8a4649dc74afafa413c85954e9cc3b0df",
+       "identifier_strategy": {
+        "strategy": "semantic-content-sha256",
+        "stability": "observation-exact"
+       }
+      }
+     ]
+    }
+   ],
+   "edges": [],
+   "coverage": {
+    "status": "partial",
+    "truncated": false,
+    "omitted_count": 0,
+    "limits": []
+   },
+   "limitations": [
+    "CommonJS and ESM binding relationships were recovered from inert syntax and resolved only within the inventoried artifact container.",
+    "JavaScript and HTML were parsed as inert text; bundle bootstrap code was never executed.",
+    "Static imports, entrypoints, workers, endpoints, and storage relationships do not prove runtime execution.",
+    "server.ts: Resource constraint during analyze_javascript_application: server.ts: Resource constraint during analyze_javascript_application: The parent reserved its remaining result capacity for static observations; semantic analysis of server.ts was not started"
+   ]
+  },
+  "statistics": {
+   "relevant_files": 112,
+   "nested_asar_containers": 0,
+   "text_bytes_read": 336774,
+   "invalid_utf8_files": 0,
+   "parsed_javascript_files": 111,
+   "visited_ast_nodes": 45470,
+   "findings": 2138,
+   "modules": 0,
+   "parse_failures": 0
+  },
+  "limitations": [
+   "CommonJS and ESM binding relationships were recovered from inert syntax and resolved only within the inventoried artifact container.",
+   "JavaScript and HTML were parsed as inert text; bundle bootstrap code was never executed.",
+   "Static imports, entrypoints, workers, endpoints, and storage relationships do not prove runtime execution.",
+   "server.ts: Resource constraint during analyze_javascript_application: server.ts: Resource constraint during analyze_javascript_application: The parent reserved its remaining result capacity for static observations; semantic analysis of server.ts was not started"
+  ]
+ },
+ "_note": "Trimmed from real `rea analyze-javascript-application` 6.4.0 output for OWASP Juice Shop 20.3.0 (server.ts, routes/, lib/, models/). Nodes are verbatim; most nodes, all edges and the semantic graph were dropped to keep it small."
+}

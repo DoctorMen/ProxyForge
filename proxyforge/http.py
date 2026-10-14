@@ -8,6 +8,7 @@ when written, so every stored body is the plain payload.
 from __future__ import annotations
 
 import asyncio
+import zlib
 from dataclasses import dataclass, field
 
 MAX_HEAD = 64 * 1024
@@ -30,6 +31,20 @@ HOP_BY_HOP = {
 
 class HttpError(Exception):
     """The peer sent something that is not valid HTTP/1.x."""
+
+
+class ShortBody(HttpError):
+    """The peer closed the connection before sending the body it promised.
+
+    Real servers do this (a wrong Content-Length is a finding in itself), so
+    callers keep `partial`, what did arrive, instead of discarding it.
+    """
+
+    def __init__(self, partial: bytes, expected: int | None):
+        promised = f"{expected} promised" if expected is not None else "an unknown number of chunked"
+        super().__init__(f"server closed the connection after {len(partial)} of {promised} body bytes")
+        self.partial = partial
+        self.expected = expected
 
 
 class Headers:
@@ -109,6 +124,7 @@ class Response:
     version: str = "HTTP/1.1"
     headers: Headers = field(default_factory=Headers)
     body: bytes = b""
+    incomplete: str = ""  # set when the body is shorter than the server promised
 
     def head_bytes(self) -> bytes:
         line = f"{self.version} {self.status} {self.reason}\r\n".encode("latin-1")
@@ -167,6 +183,13 @@ async def read_head(reader: asyncio.StreamReader) -> bytes | None:
 
 async def _read_chunked(reader: asyncio.StreamReader) -> bytes:
     body = bytearray()
+    try:
+        return await _read_chunks(reader, body)
+    except asyncio.IncompleteReadError as exc:
+        raise ShortBody(bytes(body), None) from exc
+
+
+async def _read_chunks(reader: asyncio.StreamReader, body: bytearray) -> bytes:
     while True:
         size_line = await reader.readuntil(b"\r\n")
         size_text = size_line.split(b";", 1)[0].strip()
@@ -209,7 +232,10 @@ async def read_body(
         size = int(length)
         if size > MAX_BODY:
             raise HttpError("body too large")
-        return await reader.readexactly(size)
+        try:
+            return await reader.readexactly(size)
+        except asyncio.IncompleteReadError as exc:
+            raise ShortBody(exc.partial, size) from exc
     if response_to is None:
         return b""
     # A response with no framing ends when the server closes the connection.
@@ -238,7 +264,11 @@ async def read_response(reader: asyncio.StreamReader, method: str) -> Response:
     if head is None:
         raise HttpError("server closed the connection without a response")
     resp = parse_response_head(head)
-    resp.body = await read_body(reader, resp.headers, response_to=method, status=resp.status)
+    try:
+        resp.body = await read_body(reader, resp.headers, response_to=method, status=resp.status)
+    except ShortBody as exc:
+        # Keep what arrived; the proxy records the mismatch and passes the bytes on.
+        resp.body, resp.incomplete = exc.partial, str(exc)
     return resp
 
 
@@ -255,3 +285,31 @@ def strip_hop_by_hop(headers: Headers, keep_upgrade: bool = False) -> Headers:
     if keep_upgrade and headers.get("Upgrade"):
         out.set("Connection", "Upgrade")
     return out
+
+
+def decode_content(body: bytes, headers: Headers) -> bytes:
+    """Undo Content-Encoding so a body can be read. Unknown encodings pass through.
+
+    gzip and deflate always work. Brotli needs the optional `brotli` package;
+    without it the proxy asks servers for gzip/deflate instead (see proxy.py).
+    """
+    encoding = (headers.get("Content-Encoding") or "").lower().strip()
+    if not body or encoding in ("", "identity"):
+        return body
+    try:
+        if encoding == "gzip" or encoding == "x-gzip":
+            return zlib.decompress(body, 16 + zlib.MAX_WBITS)
+        if encoding == "deflate":
+            try:
+                return zlib.decompress(body)
+            except zlib.error:
+                return zlib.decompress(body, -zlib.MAX_WBITS)
+        if encoding == "br":
+            try:
+                import brotli
+            except ImportError:
+                return body
+            return brotli.decompress(body)
+    except Exception:  # corrupt data: show the raw bytes rather than nothing
+        return body
+    return body

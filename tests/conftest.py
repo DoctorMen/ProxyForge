@@ -61,6 +61,14 @@ class AppHandler(http.server.BaseHTTPRequestHandler):
         elif self.path == "/nocontent":
             self.send_response(204)
             self.end_headers()
+        elif self.path == "/short":
+            # Promises 20 bytes, sends 12, hangs up: a wrong Content-Length.
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.send_header("Content-Length", "20")
+            self.end_headers()
+            self.wfile.write(b"only twelve!")
+            self.close_connection = True
         else:
             self._send(404, b"not found")
 

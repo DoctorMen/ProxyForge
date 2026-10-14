@@ -91,6 +91,8 @@ async def send(
         while 100 <= resp.status < 200 and resp.status != 101:
             resp = await asyncio.wait_for(read_response(reader, out.method), timeout)
         flow.response = resp
+        if resp.incomplete:
+            flow.note = resp.incomplete
     except (OSError, ssl.SSLError, HttpError, asyncio.TimeoutError, asyncio.IncompleteReadError) as exc:
         flow.error = f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__
     finally:

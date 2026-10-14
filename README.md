@@ -5,11 +5,12 @@ clean-room build of the ideas in Burp Suite Professional: the features were
 worked out from PortSwigger's public documentation and from open-source
 tools (OWASP ZAP, mitmproxy), not from Burp's code.
 
-**Status: part 2 of 10.** What works today: the intercepting proxy
-(HTTP and HTTPS capture, scope file, match-and-replace rules, a SQLite
-history you can search, HAR export) and the manual testing tools
-(Repeater, Decoder, Comparer). Everything listed below as "planned" does
-not exist yet.
+**Status: part 2 of 10, plus the recon bridge.** What works today: the
+intercepting proxy (HTTP and HTTPS capture, scope file, match-and-replace
+rules, a SQLite history you can search, HAR export), the manual testing
+tools (Repeater, Decoder, Comparer), and a coverage report that compares
+the routes a recon tool found in the app's code with the routes you
+actually hit. Everything listed below as "planned" does not exist yet.
 
 | Burp Pro feature | proxyforge | Status |
 |---|---|---|
@@ -18,6 +19,7 @@ not exist yet.
 | Match and replace | TOML rules file | done |
 | Save/export traffic | SQLite project file, HAR 1.2 export | done |
 | Repeater, Decoder, Comparer | `repeat`, `raw`, `decode`, `encode`, `diff` | done |
+| Site map vs. what you tested (no Burp equivalent) | `import-rea`, `coverage` | done |
 | Intruder (4 attack types) | `fuzz` | planned (part 3) |
 | Passive scanner | | planned (part 4) |
 | Active scanner, BChecks | YAML checks | planned (part 5) |
@@ -43,7 +45,7 @@ git clone https://github.com/DoctorMen/proxyforge
 cd proxyforge
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[test]"
-pytest            # expect: 64 passed
+pytest            # expect: 106 passed
 ```
 
 ## Do it yourself: capture your first traffic
@@ -283,7 +285,88 @@ proxyforge har -p lab.db lab.har
 HAR is the format browser dev tools use. The file opens in Chrome or Firefox
 dev tools (Network tab, import), in OWASP ZAP, and in
 [REA](https://github.com/morluto/rea) for deeper analysis of the captured
-traffic.
+traffic (`rea inspect-web-network-capture lab.har har`). URLs are
+percent-encoded on the way out, because browsers send characters like `[`
+raw and strict HAR readers reject them.
+
+## Coverage: what the code has vs. what you tested
+
+Recon finds routes by reading code; the proxy only sees the routes you
+exercised. Comparing the two tells you what you have not tested yet, and
+which routes the recon tool could not see. This is the bridge between
+[REA](https://github.com/morluto/rea) (recon) and proxyforge (attack).
+
+**1. Map the app with REA.** Point it at the folder that holds the server
+code. For OWASP Juice Shop that is `server.ts`, `routes/`, `lib/` and
+`models/`; copy just those into a folder and run:
+
+```bash
+rea analyze-javascript-application ./juice-server --format json > juice-server.json
+```
+
+Do not point it at the whole repository. REA has a result budget per run,
+and on the full Juice Shop checkout (849 files) it spent that budget on the
+frontend and test data and skipped `server.ts`, the one file with the real
+routes. `import-rea` prints a warning when that happens.
+
+**2. Browse and test the app through the proxy** (`proxyforge run -p juice.db`).
+
+**3. Import the map and compare:**
+
+```bash
+proxyforge import-rea -p juice.db juice-server.json
+proxyforge coverage -p juice.db --host 127.0.0.1:3000
+```
+
+Real output, Juice Shop 20.3.0, after ten pages in a browser and ~40 API
+requests with curl:
+
+```
+imported 105 routes from juice-server.json: 2 router, 103 server
+  REA parsed 111 files, 0 parse failures
+  skipped 94 endpoint observations that are not HTTP paths (call:config.get x93, call:req.get x1)
+  next: proxyforge coverage -p PROJECT [--host HOST]
+
+Coverage for 127.0.0.1:3000: 37 of 105 server routes hit (35%) across 138 flows
+  untested     68   routes in the map you never sent a request to
+  tested       37   routes seen in history
+  unmapped     10   paths you hit that the map has no route for
+  static       49   files (js, css, images) not counted
+
+UNTESTED  (try these next)
+  POST    /                                                  routes/dataErasure.ts:74  (router; mount point unknown)
+  POST    /api/Addresss                                      server.ts:476
+  GET     /api/Addresss/:id                                  server.ts:480
+  ...
+TESTED
+  GET     /rest/basket/:id                                     3 flows  status 200          #97 #98 #99
+  PUT     /rest/basket/:id/coupon/:coupon                      1 flows  status 404          #135
+  ...
+UNMAPPED  (seen in history, no route in the map: middleware, generated CRUD,
+mounted routers, or code the recon tool could not read)
+  GET     /api/Challenges                                      4 flows  #34 #37 #73 #112
+  GET     /api/Feedbacks                                       1 flows  #68
+  GET     /ftp                                                 1 flows  #109
+  ...
+```
+
+How to read it:
+
+- **UNTESTED** is your to-do list, with the file and line each route lives
+  at so you can read the handler before you attack it. `:id` is an Express
+  parameter; `ANY` means `app.route()` or `app.use()` took every method.
+- **UNMAPPED** is REA's blind spot. `GET /api/Challenges` is real but never
+  appears in `server.ts` as `app.get`: Juice Shop generates its CRUD routes
+  in a loop (`finale-rest`), and `/ftp` is a static-files middleware. Static
+  analysis can't see either; the proxy can. Add them to the map yourself
+  with a text file (`GET /api/Challenges` per line) and `import-routes`.
+- Flow numbers (`#97`) go straight into `show`, `repeat` and `diff`.
+
+`coverage --json` gives the same report for scripts; `--show untested`
+prints only the to-do list; `routes` lists the imported map.
+
+Patterns follow Express: `:name` is one path segment, `:name?` optional,
+`*` anything, matching ignores case and trailing slashes.
 
 ## How it works
 
@@ -308,7 +391,19 @@ browser --"CONNECT site:443"-------------> proxy
 | `proxyforge/repeater.py` | Raw request text, edits |
 | `proxyforge/codec.py` | Decoder: codecs and layer guessing |
 | `proxyforge/compare.py` | Comparer: header and body diffs |
+| `proxyforge/routes.py` | Route maps (REA import, text lists), Express pattern matching, the coverage report |
 | `proxyforge/cli.py` | The `proxyforge` command |
+
+Two things the proxy does to keep recorded bodies useful:
+
+- It narrows the browser's `Accept-Encoding` to `gzip, deflate`, which the
+  standard library can decode, so `show`, `diff` and the HAR export can read
+  every body. Chrome asks for brotli and zstd otherwise. Pass
+  `--keep-accept-encoding` to send the header through unchanged.
+- When a server promises a `Content-Length` and hangs up early (Juice Shop's
+  `/ftp` listing does: 11339 promised, 11327 sent), the bytes that did arrive
+  are recorded and passed on, and the flow gets a note. A wrong
+  `Content-Length` is worth a line in a report by itself.
 
 Known limits: HTTP/1.1 only (the proxy offers only HTTP/1.1 to
 both sides, so HTTP/2 sites fall back), no live "intercept and edit before
@@ -317,7 +412,7 @@ are passed through but not recorded.
 
 ## Tests
 
-`pytest` runs 64 tests. The end-to-end tests start real HTTP and HTTPS
+`pytest` runs 106 tests. The end-to-end tests start real HTTP and HTTPS
 servers on 127.0.0.1 and send traffic through a running proxy. They check,
 among other things, that:
 
@@ -325,7 +420,11 @@ among other things, that:
 - the proxy refuses a site whose certificate it can't verify;
 - out-of-scope HTTPS is tunnelled untouched and never recorded;
 - chunked, gzip, HEAD, 204, keep-alive and WebSocket upgrades are handled;
-- match-and-replace rules change the traffic and are logged per request.
+- match-and-replace rules change the traffic and are logged per request;
+- a short body (wrong Content-Length) is kept and noted, not turned into a 502;
+- the REA import reads real `analyze-javascript-application` output
+  (`tests/fixtures/rea-juice-shop.json`, trimmed from a Juice Shop run) and
+  the coverage report sorts flows into tested, untested, unmapped and static.
 
 CI runs them on Python 3.11 to 3.13, then smoke-tests the real CLI with curl.
 
@@ -336,6 +435,8 @@ CI runs them on Python 3.11 to 3.13, then smoke-tests the real CLI with curl.
 - History is a plain SQLite file. Query it with any SQL tool.
 - Every Repeater send is kept as evidence with a note saying where it came from.
 - HAR export feeds the traffic to REA and browser dev tools.
+- The coverage report closes the loop the other way: REA's route map comes
+  in, and you see what you have not tested and what REA could not see.
 - Planned: the scanner will run PortSwigger's open BCheck files (LGPL-3.0
   community library), and each check will be proven in CI against an app
   with a planted bug.

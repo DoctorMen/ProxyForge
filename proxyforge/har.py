@@ -10,28 +10,12 @@ from __future__ import annotations
 import base64
 import datetime as dt
 import json
-import zlib
 from http.cookies import SimpleCookie
-from urllib.parse import parse_qsl, urlsplit
+from urllib.parse import parse_qsl, quote, urlsplit
 
 from . import __version__
 from .history import Flow
-from .http import Headers
-
-
-def _decode(body: bytes, headers: Headers) -> bytes:
-    encoding = (headers.get("Content-Encoding") or "").lower().strip()
-    try:
-        if encoding == "gzip":
-            return zlib.decompress(body, 16 + zlib.MAX_WBITS)
-        if encoding == "deflate":
-            try:
-                return zlib.decompress(body)
-            except zlib.error:
-                return zlib.decompress(body, -zlib.MAX_WBITS)
-    except zlib.error:
-        pass
-    return body
+from .http import Headers, decode_content
 
 
 def _text_or_base64(body: bytes) -> dict:
@@ -67,9 +51,22 @@ def _response_cookies(headers: Headers) -> list[dict]:
     return out
 
 
+def clean_url(url: str) -> str:
+    """Percent-encode characters a browser leaves raw (spaces, [, ], quotes, non-ASCII).
+
+    Browsers send such paths as-is, but HAR consumers that validate the
+    schema (REA does) reject any URL that is not valid RFC 3986.
+    """
+    scheme, sep, rest = url.partition("://")
+    if not sep:
+        return url
+    authority, slash, path = rest.partition("/")
+    return scheme + sep + authority + slash + quote(path, safe="/:@!$&'()*+,;=%~-._?")
+
+
 def flow_to_entry(flow: Flow) -> dict:
     req, resp = flow.request, flow.response
-    url = flow.url
+    url = clean_url(flow.url)
     request = {
         "method": req.method,
         "url": url,
@@ -92,7 +89,7 @@ def flow_to_entry(flow: Flow) -> dict:
             **post,
         }
     if resp is not None:
-        content = _decode(resp.body, resp.headers)
+        content = decode_content(resp.body, resp.headers)
         response = {
             "status": resp.status,
             "statusText": resp.reason,

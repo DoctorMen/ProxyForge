@@ -81,6 +81,23 @@ def client_wants_keep_alive(req: Request) -> bool:
     return True
 
 
+READABLE_CODINGS = ("gzip", "x-gzip", "deflate", "identity")
+
+
+def narrow_accept_encoding(value: str) -> str:
+    """Drop codings we can't decode (br, zstd) from an Accept-Encoding value.
+
+    The client's own list is respected otherwise: "br" alone becomes
+    "identity" rather than something the client never offered.
+    """
+    kept = []
+    for part in value.split(","):
+        coding = part.split(";", 1)[0].strip().lower()
+        if coding in READABLE_CODINGS and part.strip() not in kept:
+            kept.append(part.strip())
+    return ", ".join(kept) if kept else "identity"
+
+
 def has_body_semantics(method: str, status: int) -> bool:
     return method != "HEAD" and status >= 200 and status not in (204, 304)
 
@@ -119,6 +136,7 @@ class ProxyServer:
         listen_port: int = 8080,
         upstream_ssl: ssl.SSLContext | None = None,
         record_out_of_scope: bool = False,
+        readable_bodies: bool = True,
         log: Callable[[str], None] = print,
     ):
         self.ca = ca
@@ -128,6 +146,10 @@ class ProxyServer:
         self.listen_host = listen_host
         self.listen_port = listen_port
         self.record_out_of_scope = record_out_of_scope
+        # Browsers ask for brotli/zstd, which the standard library can't unpack.
+        # Asking for gzip/deflate instead keeps every stored body readable by
+        # `show`, `diff` and the HAR export without extra packages.
+        self.readable_bodies = readable_bodies
         self.log = log
         if upstream_ssl is None:
             upstream_ssl = ssl.create_default_context()
@@ -248,6 +270,8 @@ class ProxyServer:
         flow = Flow(scheme, host, port, out)
         record = self._recorded(flow.url)
 
+        if record and self.readable_bodies and out.headers.get("Accept-Encoding"):
+            out.headers.set("Accept-Encoding", narrow_accept_encoding(out.headers.get("Accept-Encoding")))
         if record and self.rules.rules:
             out.body, flow.rules_fired = self.rules.apply_request(out.headers, out.body)
         had_framing = req.headers.get("Content-Length") is not None or req.headers.has_token(
@@ -287,6 +311,8 @@ class ProxyServer:
             await self._send_error(writer, 502, f"proxyforge could not reach {host}:{port}\n{flow.error}", keep_alive)
             return False
         flow.duration_ms = int((time.monotonic() - started) * 1000)
+        if resp.incomplete:
+            flow.note = resp.incomplete
 
         if resp.status == 101:
             flow.response = resp
