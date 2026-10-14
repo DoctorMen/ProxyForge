@@ -1,0 +1,27 @@
+name: ci
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -e ".[test]"
+      - run: pytest -v
+      - name: Smoke test the CLI through a real proxy
+        run: |
+          unset NO_PROXY no_proxy
+          proxyforge run -p smoke.db --listen 127.0.0.1:8080 &
+          python -m http.server 8000 --bind 127.0.0.1 &
+          sleep 2
+          curl -sf -x http://127.0.0.1:8080 http://127.0.0.1:8000/ > /dev/null
+          curl -sf -x http://127.0.0.1:8080 --cacert ~/.proxyforge/ca.pem https://example.com/ > /dev/null
+          proxyforge history -p smoke.db
+          test "$(proxyforge history -p smoke.db | wc -l)" -eq 2

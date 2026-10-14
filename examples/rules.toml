@@ -1,0 +1,12 @@
+# Bug bounty programs often ask you to tag your traffic with a header.
+[[rule]]
+where = "request_header"
+match = ""
+replace = "X-Bug-Bounty: your-handle"
+comment = "add a header to every request"
+
+[[rule]]
+where = "response_header"
+match = "^Server:.*$"
+replace = ""
+comment = "hide the Server header (shows how deletion works)"
