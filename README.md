@@ -5,10 +5,11 @@ clean-room build of the ideas in Burp Suite Professional: the features were
 worked out from PortSwigger's public documentation and from open-source
 tools (OWASP ZAP, mitmproxy, Caido), not from Burp's code.
 
-**Status: part 1 of 10.** What works today is the intercepting proxy:
-HTTP and HTTPS capture, a scope file, match-and-replace rules, a SQLite
-history you can search, and HAR export. Everything listed below as
-"planned" does not exist yet.
+**Status: part 2 of 10.** What works today: the intercepting proxy
+(HTTP and HTTPS capture, scope file, match-and-replace rules, a SQLite
+history you can search, HAR export) and the manual testing tools
+(Repeater, Decoder, Comparer). Everything listed below as "planned" does
+not exist yet.
 
 | Burp Pro feature | proxyforge | Status |
 |---|---|---|
@@ -16,7 +17,7 @@ history you can search, and HAR export. Everything listed below as
 | Target scope | TOML scope file, enforced | done |
 | Match and replace | TOML rules file | done |
 | Save/export traffic | SQLite project file, HAR 1.2 export | done |
-| Repeater, Decoder, Comparer | `repeat`, `decode`, `diff` | planned (part 2) |
+| Repeater, Decoder, Comparer | `repeat`, `raw`, `decode`, `encode`, `diff` | done |
 | Intruder (4 attack types) | `fuzz` | planned (part 3) |
 | Passive scanner | | planned (part 4) |
 | Active scanner, BChecks | YAML checks | planned (part 5) |
@@ -42,7 +43,7 @@ git clone https://github.com/DoctorMen/proxyforge
 cd proxyforge
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[test]"
-pytest            # expect: 43 passed
+pytest            # expect: 64 passed
 ```
 
 ## Do it yourself: capture your first traffic
@@ -168,6 +169,111 @@ time: an empty `replace` deletes the line, an empty `match` adds `replace`
 as a new header. Body rules are regexes over the raw body; they won't match
 inside a gzip-compressed response. Rules only touch in-scope traffic.
 
+## Repeater: change a request and send it again
+
+Take any recorded flow, change one thing, and resend it. Each resend is
+saved to history as a new flow (marked `repeater: from flow N`), so your
+testing leaves an evidence trail.
+
+```bash
+proxyforge repeat 1 -p lab.db --no-scope --path /nope
+```
+
+```
+#2  404 File not found  GET http://127.0.0.1:8000/nope  335B  6ms
+HTTP/1.0 404 File not found
+Server: SimpleHTTP/0.6 Python/3.13.16
+...
+```
+
+Edits you can combine:
+
+| Option | Does |
+|---|---|
+| `--path /rest/basket/2` | new path and query |
+| `-X POST` | new method |
+| `-H "Authorization: Bearer ..."` | set a header (repeatable); `-H "Cookie:"` removes one |
+| `--body 'text'` or `--body @file` | new body; Content-Length is fixed for you |
+| `-e` | open the whole request in your editor (`$EDITOR`, default nano) |
+| `--url https://host:port` | send somewhere else |
+| `--raw req.http --url ...` | send a request you wrote in a text file |
+
+`proxyforge raw 5 -p lab.db > req.http` saves a flow's request as text to
+edit and replay with `--raw`.
+
+Repeater, and every attack tool after it, refuses to send anything until you
+make a scope decision: pass `-s scope.toml` (the target must be in it) or
+`--no-scope` to say you own the target.
+
+```
+$ proxyforge repeat 1 -p lab.db
+refused: active tools need a scope file (-s scope.toml) or --no-scope to confirm you own the target
+```
+
+**Practice: find an IDOR in OWASP Juice Shop.** Run Juice Shop locally
+(`docker run -d -p 3000:3000 bkimminich/juice-shop`), log in through the
+proxy, and open your basket. Then ask for someone else's:
+
+```bash
+proxyforge history -p juice.db --contains basket        # find your basket flow, e.g. 6
+proxyforge repeat 6 -p juice.db --no-scope --path /rest/basket/1
+proxyforge diff 6 NEW -p juice.db    # NEW = the flow number repeat printed
+```
+
+If the response has `"UserId": 1` while you are logged in as another user,
+the server is not checking who owns the basket.
+
+## Decoder
+
+`proxyforge decode` guesses the encoding and peels it layer by layer:
+
+```bash
+proxyforge decode 'eyJhbGciOiJub25lIn0.eyJ1c2VyIjoiayIsInJvbGUiOiJjdXN0b21lciJ9.'
+```
+
+```
+[1] jwt:
+{
+  "header": {
+    "alg": "none"
+  },
+  "payload": {
+    "user": "k",
+    "role": "customer"
+  },
+  "signature": "(empty: unsigned token)",
+  "note": "signature NOT verified"
+}
+```
+
+Choose the steps yourself with `-c`, in order:
+`proxyforge decode -c url,base64 'eyJhIjoxfQ%3D%3D'` (prints `{"a":1}`), and
+`proxyforge encode -c base64,url '{"role":"admin"}'`.
+Codecs: url, url-all, base64, base64url, hex, html, gzip, and jwt (decode only).
+
+## Comparer
+
+```bash
+proxyforge diff 1 2 -p lab.db            # responses
+proxyforge diff 1 2 -p lab.db --request  # requests
+```
+
+```
+A  #1  GET http://127.0.0.1:8000/
+B  #2  GET http://127.0.0.1:8000/nope
+status: 200 vs 404   length: 460 vs 335   time: 2ms vs 6ms
+headers: changed
+  ~ content-type: text/html; charset=utf-8  ->  text/html;charset=utf-8
+body: changed
+--- #1
++++ #2
+...
+```
+
+Headers that change on every response (Date, ETag, Content-Length,
+Connection) are ignored. JSON bodies are pretty-printed first, so a
+one-line API response diffs field by field.
+
 ## HAR export (and REA)
 
 ```bash
@@ -198,16 +304,20 @@ browser --"CONNECT site:443"-------------> proxy
 | `proxyforge/rules.py` | Match and replace |
 | `proxyforge/history.py` | SQLite history |
 | `proxyforge/har.py` | HAR 1.2 export |
+| `proxyforge/client.py` | Sends one request directly to a server; the scope gate for active tools |
+| `proxyforge/repeater.py` | Raw request text, edits |
+| `proxyforge/codec.py` | Decoder: codecs and layer guessing |
+| `proxyforge/compare.py` | Comparer: header and body diffs |
 | `proxyforge/cli.py` | The `proxyforge` command |
 
-Known limits in part 1: HTTP/1.1 only (the proxy offers only HTTP/1.1 to
+Known limits: HTTP/1.1 only (the proxy offers only HTTP/1.1 to
 both sides, so HTTP/2 sites fall back), no live "intercept and edit before
 sending" yet (that comes with the UI), and frames after a WebSocket upgrade
 are passed through but not recorded.
 
 ## Tests
 
-`pytest` runs 43 tests. The end-to-end tests start real HTTP and HTTPS
+`pytest` runs 64 tests. The end-to-end tests start real HTTP and HTTPS
 servers on 127.0.0.1 and send traffic through a running proxy. They check,
 among other things, that:
 
@@ -218,6 +328,17 @@ among other things, that:
 - match-and-replace rules change the traffic and are logged per request.
 
 CI runs them on Python 3.11 to 3.13, then smoke-tests the real CLI with curl.
+
+## Where it differs from Burp on purpose
+
+- Active tools refuse to send until you give a scope file or say `--no-scope`.
+  A typo can't send attack traffic to a host you aren't allowed to test.
+- History is a plain SQLite file. Query it with any SQL tool.
+- Every Repeater send is kept as evidence with a note saying where it came from.
+- HAR export feeds the traffic to REA and browser dev tools.
+- Planned: the scanner will run PortSwigger's open BCheck files (LGPL-3.0
+  community library), and each check will be proven in CI against an app
+  with a planted bug.
 
 ## How this was built
 

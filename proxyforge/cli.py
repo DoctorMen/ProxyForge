@@ -9,11 +9,14 @@ import ssl
 import sys
 from pathlib import Path
 
-from . import __version__, har
+from . import __version__, codec, har
 from .ca import CertAuthority
+from .client import OutOfScope, check_scope, default_context, send
+from .compare import body_diff, header_changes
 from .history import History
-from .http import Headers
-from .proxy import ProxyServer, split_authority
+from .http import Headers, HttpError
+from .proxy import ProxyServer, split_absolute_url, split_authority
+from .repeater import apply_edits, describe, from_raw, to_raw
 from .rules import RuleSet
 from .scope import Scope
 
@@ -137,6 +140,156 @@ def cmd_scope(args) -> int:
     return code
 
 
+def _read_body_arg(value: str | None) -> bytes | None:
+    if value is None:
+        return None
+    if value.startswith("@"):
+        return Path(value[1:]).read_bytes()
+    return value.encode()
+
+
+def _edit_in_editor(text: str) -> str:
+    import subprocess
+    import tempfile
+    editor = os.environ.get("VISUAL") or os.environ.get("EDITOR") or "nano"
+    with tempfile.NamedTemporaryFile("w+", suffix=".http", delete=False) as fh:
+        fh.write(text)
+        name = fh.name
+    try:
+        subprocess.run([*editor.split(), name], check=True)
+        return Path(name).read_text()
+    finally:
+        os.unlink(name)
+
+
+def _print_response(flow, body_limit: int) -> None:
+    if flow.response is None:
+        return
+    s = flow.response
+    print(f"{s.version} {s.status} {s.reason}")
+    print(_headers_text(s.headers) + "\n" + _body_text(s.body, body_limit), end="")
+
+
+def cmd_repeat(args) -> int:
+    history = History(args.project)
+    if args.raw:
+        if not args.url:
+            print("--raw needs --url to say where to send it, e.g. --url https://example.com", file=sys.stderr)
+            return 2
+        req = from_raw(Path(args.raw).read_text())
+        scheme = host = port = None
+        note = f"repeater: from {args.raw}"
+    else:
+        if args.id is None:
+            print("give a flow id, or --raw FILE --url URL", file=sys.stderr)
+            return 2
+        source = history.get(args.id)
+        if source is None:
+            print(f"no flow {args.id}", file=sys.stderr)
+            return 1
+        req, scheme, host, port = source.request, source.scheme, source.host, source.port
+        note = f"repeater: from flow {args.id}"
+    if args.url:
+        scheme, host, port, base_path = split_absolute_url(args.url)
+        if args.raw is None and base_path != "/" and not args.path:
+            args.path = base_path
+        req.headers.remove("Host")
+    req = apply_edits(req, method=args.method, path=args.path, set_headers=args.header,
+                      body=_read_body_arg(args.body))
+    if args.edit:
+        req = from_raw(_edit_in_editor(to_raw(req)))
+    target_url = f"{scheme}://{host}:{port}{req.target}"
+    scope = Scope.load(args.scope) if args.scope else None
+    try:
+        check_scope(target_url, scope, args.no_scope)
+    except OutOfScope as exc:
+        print(f"refused: {exc}", file=sys.stderr)
+        return 3
+    flow = asyncio.run(send(scheme, host, port, req, default_context(args.insecure), args.timeout))
+    flow.note = note
+    if not args.no_save:
+        history.add(flow)
+    if args.show_request:
+        print(to_raw(flow.request).rstrip("\n") + "\n\n" + "-" * 60)
+    print(describe(flow), file=sys.stderr)
+    _print_response(flow, args.limit)
+    return 0 if flow.response is not None else 1
+
+
+def cmd_raw(args) -> int:
+    flow = History(args.project).get(args.id)
+    if flow is None:
+        print(f"no flow {args.id}", file=sys.stderr)
+        return 1
+    sys.stdout.write(to_raw(flow.request))
+    return 0
+
+
+def _input_bytes(text: str | None) -> bytes:
+    if text is None or text == "-":
+        return sys.stdin.buffer.read().rstrip(b"\n")
+    return text.encode()
+
+
+def _show_bytes(data: bytes) -> str:
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        return "hex: " + data.hex()
+
+
+def cmd_decode(args) -> int:
+    data = _input_bytes(args.text)
+    if args.chain:
+        print(_show_bytes(codec.decode(data, args.chain.split(","))))
+        return 0
+    steps = codec.smart_decode(data)
+    if not steps:
+        print("no known encoding detected; try -c with one of: " + ", ".join(codec.DECODERS),
+              file=sys.stderr)
+        return 1
+    for i, (name, out) in enumerate(steps, 1):
+        print(f"[{i}] {name}:")
+        print(_show_bytes(out))
+    return 0
+
+
+def cmd_encode(args) -> int:
+    print(_show_bytes(codec.encode(_input_bytes(args.text), args.chain.split(","))))
+    return 0
+
+
+def cmd_diff(args) -> int:
+    history = History(args.project)
+    a, b = history.get(args.a), history.get(args.b)
+    for fid, f in ((args.a, a), (args.b, b)):
+        if f is None:
+            print(f"no flow {fid}", file=sys.stderr)
+            return 1
+    print(f"A  #{a.id}  {a.request.method} {a.url}")
+    print(f"B  #{b.id}  {b.request.method} {b.url}")
+    if args.request:
+        ha, hb, ba, bb = a.request.headers, b.request.headers, a.request.body, b.request.body
+        if a.request.target != b.request.target or a.request.method != b.request.method:
+            print(f"~ request line: {a.request.method} {a.request.target}  ->  {b.request.method} {b.request.target}")
+    else:
+        if a.response is None or b.response is None:
+            print("one of the flows has no response", file=sys.stderr)
+            return 1
+        ha, hb, ba, bb = a.response.headers, b.response.headers, a.response.body, b.response.body
+        print(f"status: {a.response.status} vs {b.response.status}   "
+              f"length: {len(ba)} vs {len(bb)}   time: {a.duration_ms}ms vs {b.duration_ms}ms")
+    changes = header_changes(ha, hb)
+    print("headers: " + ("identical (ignoring Date, ETag, Content-Length, Connection)" if not changes else "changed"))
+    for line in changes:
+        print("  " + line)
+    diff = body_diff(ba, bb, f"#{a.id}", f"#{b.id}", args.context)
+    print("body: " + ("identical" if not diff else "changed"))
+    for line in diff:
+        print(line)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="proxyforge", description=__doc__)
     p.add_argument("--version", action="version", version=__version__)
@@ -188,6 +341,49 @@ def build_parser() -> argparse.ArgumentParser:
     h.add_argument("output")
     h.set_defaults(func=cmd_har)
 
+    rp = sub.add_parser("repeat", help="edit a request and send it again (Repeater)")
+    project(rp)
+    rp.add_argument("id", type=int, nargs="?", help="flow id to start from")
+    rp.add_argument("--raw", help="send a raw request file instead of a flow")
+    rp.add_argument("--url", help="where to send it: scheme://host[:port][/path]")
+    rp.add_argument("-X", "--method")
+    rp.add_argument("--path", help="new path and query, e.g. /rest/basket/2")
+    rp.add_argument("-H", "--header", action="append",
+                    help="'Name: value' to set, 'Name:' to remove (repeatable)")
+    rp.add_argument("--body", help="new body text, or @file")
+    rp.add_argument("-e", "--edit", action="store_true", help="open the request in $EDITOR first")
+    rp.add_argument("-s", "--scope", help="scope file; the target must be in it")
+    rp.add_argument("--no-scope", action="store_true", help="I own this target; skip the scope check")
+    rp.add_argument("--insecure", action="store_true", help="don't verify the server's certificate")
+    rp.add_argument("--timeout", type=float, default=30)
+    rp.add_argument("--show-request", action="store_true")
+    rp.add_argument("--no-save", action="store_true", help="don't add the result to history")
+    rp.add_argument("--limit", type=int, default=4000, help="max body characters to print")
+    rp.set_defaults(func=cmd_repeat)
+
+    raw = sub.add_parser("raw", help="print a flow's request as editable text")
+    project(raw)
+    raw.add_argument("id", type=int)
+    raw.set_defaults(func=cmd_raw)
+
+    dec = sub.add_parser("decode", help="decode text; guesses the layers if -c is not given")
+    dec.add_argument("text", nargs="?", help="text to decode (default: read stdin)")
+    dec.add_argument("-c", "--chain", help="decoders to apply in order: " + ",".join(codec.DECODERS))
+    dec.set_defaults(func=cmd_decode)
+
+    enc = sub.add_parser("encode", help="encode text with one or more encoders")
+    enc.add_argument("text", nargs="?", help="text to encode (default: read stdin)")
+    enc.add_argument("-c", "--chain", required=True, help="encoders in order: " + ",".join(codec.ENCODERS))
+    enc.set_defaults(func=cmd_encode)
+
+    df = sub.add_parser("diff", help="compare two flows (Comparer)")
+    project(df)
+    df.add_argument("a", type=int)
+    df.add_argument("b", type=int)
+    df.add_argument("--request", action="store_true", help="compare requests instead of responses")
+    df.add_argument("--context", type=int, default=3, help="lines of context around changes")
+    df.set_defaults(func=cmd_diff)
+
     sc = sub.add_parser("scope", help="check URLs against a scope file")
     sc.add_argument("-s", "--scope", required=True)
     sc.add_argument("urls", nargs="+")
@@ -197,4 +393,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except BrokenPipeError:
+        # Output piped into `head` etc. was closed early; that's not an error.
+        sys.stderr.close()
+        return 0
+    except (ValueError, HttpError, OSError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
