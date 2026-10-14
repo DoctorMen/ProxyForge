@@ -1,0 +1,10 @@
+# Copy this file and list only targets you are authorised to test,
+# e.g. the in-scope assets from a bug bounty program's policy page.
+include = [
+  "127.0.0.1:8000",          # the practice server from the README
+  "example.com",
+  "*.example.com",
+]
+exclude = [
+  "*.example.com/logout*",   # don't let tools log you out
+]
